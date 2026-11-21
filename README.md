@@ -25,7 +25,8 @@ Sistema de gestão da operação de **repasse de veículos** (e compra e revenda
    - **Chave pública**: menu **Settings > API Keys**. Use a **Publishable key**, que começa com `sb_publishable_`. Se aparecer o botão *Create new API keys*, clique nele primeiro.
    - Se o login não funcionar com ela, use a chave antiga **anon**, na aba *Legacy API Keys* (começa com `eyJ`).
    - **Nunca** use a *Secret key* (`sb_secret_`) nem a `service_role`: elas dão acesso total ao banco e não podem ficar no site.
-7. Abra `public/config.js` e cole nas duas linhas `SUPABASE_URL` e `SUPABASE_ANON_KEY` (a chave pública vai nessa segunda linha). Deixe `LOCAL_TEST: false`.
+7. Dentro da pasta `public` há o arquivo **`config.exemplo.js`**. Faça uma cópia dele com o nome **`config.js`** e cole nas duas linhas `SUPABASE_URL` (endereço `https://xxxx.supabase.co`) e `SUPABASE_ANON_KEY` (a chave pública). Deixe `LOCAL_TEST: false`.
+   - O zip **não traz** o `config.js` de propósito: assim, quando você subir uma versão nova no GitHub, o seu `config.js` (com a URL e a chave reais) não é apagado.
 
 ### 2) GitHub
 1. Crie um repositório **privado** em github.com.
@@ -37,7 +38,7 @@ Sistema de gestão da operação de **repasse de veículos** (e compra e revenda
 3. Abra o endereço que o Netlify gerar e entre com o e-mail e a senha criados no passo 1.
 4. (Recomendado) Supabase > **Authentication > URL Configuration**: coloque o endereço do Netlify em *Site URL*.
 
-Para atualizar o sistema depois: troque os arquivos no GitHub e o Netlify publica sozinho.
+Para atualizar o sistema depois: extraia o zip novo e suba os arquivos no GitHub (o `config.js` não vem no zip, então o seu continua intacto). O Netlify publica sozinho.
 
 ## Ver no computador antes (opcional)
 Extraia o zip (botão direito > Extrair tudo), abra `public/config.js`, troque `LOCAL_TEST` para `true`, abra `public/index.html` e entre com **ADMIN / ADMIN**. Os dados ficam só naquele navegador. Volte para `false` antes de subir.

@@ -4687,6 +4687,7 @@ AC.doLogin = async function(ev){
       if(u.toUpperCase()==='ADMIN' && pw==='ADMIN'){ acEnterLocal(); return false; }
       throw new Error('Usuário ou senha incorretos.');
     }
+    if(!AC.sb) throw new Error(window.supabase ? 'Configuração pendente: no GitHub, abra public/config.js e cole a URL e a chave pública do seu projeto Supabase.' : 'Não foi possível carregar o Supabase. Verifique a internet ou desative bloqueadores e recarregue (Ctrl+F5).');
     const {data,error} = await AC.sb.auth.signInWithPassword({email:document.getElementById('ac-email').value.trim(), password:document.getElementById('ac-pass').value});
     if(error) throw error;
     await AC.enter(data.user);
@@ -4767,10 +4768,16 @@ AC.start = async function(){
     if(on) acEnterLocal();
     return;
   }
-  if(!window.supabase || !cfg.SUPABASE_URL || /SEU-PROJETO/.test(cfg.SUPABASE_URL)){
-    acLoginMsg('Configuração pendente: preencha a URL e a chave anon em config.js.'); return;
+  if(!window.supabase){
+    acLoginMsg('Não foi possível carregar o Supabase. Verifique a internet ou desative bloqueadores e recarregue (Ctrl+F5).'); return;
   }
-  AC.sb = window.supabase.createClient(cfg.SUPABASE_URL, cfg.SUPABASE_ANON_KEY, {auth:{persistSession:true, autoRefreshToken:true}});
+  const _url = String(cfg.SUPABASE_URL||'').trim(), _key = String(cfg.SUPABASE_ANON_KEY||'').trim();
+  if(!/^https:\/\//.test(_url) || /COLE_AQUI|SEU-PROJETO/.test(_url) || _key.length<20 || /COLE_AQUI|SUA-CHAVE/.test(_key)){
+    acLoginMsg('Configuração pendente: no GitHub, abra public/config.js e cole a URL e a chave pública do seu projeto Supabase.'); return;
+  }
+  try{
+    AC.sb = window.supabase.createClient(_url, _key, {auth:{persistSession:true, autoRefreshToken:true}});
+  }catch(e){ acLoginMsg('Configuração inválida no config.js: '+(e.message||e)); return; }
   try{
     const {data} = await AC.sb.auth.getSession();
     if(data && data.session) await AC.enter(data.session.user);
