@@ -177,6 +177,32 @@
         <div style="grid-column:1/-1"><label>Nome do comprador</label><input name="comprador" required placeholder="Nome de quem comprou"></div>
         <div style="grid-column:1/-1"><label>Telefone do comprador (com DDD)</label><input name="compradorTel" required inputmode="tel" placeholder="(11) 99999-9999" oninput="maskTel(this)"></div>
       </div>
+      <label class="vm-check" style="margin-top:14px!important"><input type="checkbox" name="temTroca" onchange="stToggle()"> 🔄 Entra um veículo na troca?</label>
+      <div id="st-box" style="display:none">
+        <div class="vm-sec">Veículo que está entrando</div>
+        <div class="vm-grid">
+          <div><label>Marca</label><input name="t_marca"></div>
+          <div><label>Modelo</label><input name="t_modelo"></div>
+          <div><label>Ano</label><input type="number" name="t_ano"></div>
+          <div><label>Cor</label><input name="t_cor"></div>
+          <div><label>Km</label><input type="number" name="t_km"></div>
+          <div><label>Placa (opcional)</label><input name="t_placa"></div>
+        </div>
+        <div class="vm-grid two" style="margin-top:12px">
+          <div><label>Valor que está entrando (R$)</label><input type="text" inputmode="decimal" class="money-input" onblur="formatMoneyOnBlur(event)" name="t_valor" oninput="stCalc()"></div>
+          <div><label>Valor pedido / anúncio (R$)</label><input type="text" inputmode="decimal" class="money-input" onblur="formatMoneyOnBlur(event)" name="t_pedido"></div>
+        </div>
+        <div id="st-resumo" class="vm-hint" style="margin-top:10px"></div>
+        <div class="vm-sec">O que precisa fazer <span style="text-transform:none;letter-spacing:0;font-weight:500">(pode lançar depois)</span></div>
+        <div id="st-custos-list"></div>
+        <div class="vm-grid two" style="margin-top:8px">
+          <div><label>Categoria</label><input id="st-custo-cat" list="cat-list-custos" placeholder="Ex: Funilaria, Pneus, Lavagem"></div>
+          <div><label>Valor previsto</label><input id="st-custo-val" type="text" inputmode="decimal" class="money-input" onblur="formatMoneyOnBlur(event)"></div>
+        </div>
+        <button type="button" class="btn alt small" style="width:100%;margin-top:8px" onclick="stAddCusto()">+ Adicionar item</button>
+        <label style="margin-top:12px">Observações</label>
+        <textarea name="t_obs" placeholder="Opcional"></textarea>
+      </div>
       <div class="flex-between" style="margin-top:18px;">
         <button type="button" class="btn alt" onclick="closeSaleModal()">Cancelar</button>
         <button type="submit" class="btn teal">Confirmar Venda</button>
@@ -2817,6 +2843,13 @@ function deleteVehicle(id){
   // Veículo vendido tem histórico financeiro (compra, custos, venda e comissão)
   // vinculado a ele. Excluir apagaria esse histórico do caixa — não é permitido
   // aqui. Estorno de venda é uma funcionalidade separada, fora desta etapa.
+  if(v && v.origemTroca && v.trocaDeId){
+    const origem = state.vehicles.find(x=>x.id===v.trocaDeId);
+    if(origem && origem.status==='Vendido' && origem.trocaVeiculoId===v.id){
+      showToast(`Este veículo entrou na troca da venda de ${origem.marca} ${origem.modelo}. Para removê-lo, desfaça essa venda (ele sai junto).`);
+      return;
+    }
+  }
   if(v && v.status === 'Vendido' && !isRepasse(v)){
     showToast('Este veículo já foi vendido e possui histórico financeiro (compra, custos, venda e comissão). Não é possível excluí-lo diretamente.');
     return;
@@ -2991,12 +3024,19 @@ function desfazerVenda(id){
   const v = state.vehicles.find(x=>x.id===id);
   if(!v) return;
   if(v.status!=='Vendido') return;
+  const trocaV = v.trocaVeiculoId ? state.vehicles.find(x=>x.id===v.trocaVeiculoId) : null;
+  if(trocaV && trocaV.status==='Vendido'){ showToast(`O veículo recebido na troca (${trocaV.marca} ${trocaV.modelo}) já foi vendido. Desfaça a venda dele primeiro.`); return; }
   showConfirm({
     title: 'Desfazer venda',
-    message: `Desfazer a venda de ${v.marca} ${v.modelo}?\n\nO veículo voltará para "${v.canalVenda==='Internet'?'Comprado (à venda na internet)':'Garagem Parceira'}", aguardando uma nova venda, e as transações de Venda${vehicleComissao(v)>0?' e Comissão':''} vinculadas a ele serão removidas do caixa.`,
+    message: `Desfazer a venda de ${v.marca} ${v.modelo}?\n\nO veículo voltará para "${v.canalVenda==='Internet'?'Comprado (à venda na internet)':'Garagem Parceira'}", aguardando uma nova venda, e as transações de Venda${vehicleComissao(v)>0?' e Comissão':''} vinculadas a ele serão removidas do caixa.` + (trocaV ? `\n\n🔄 O veículo recebido na troca (${trocaV.marca} ${trocaV.modelo}) será REMOVIDO de Veículos, junto com os lançamentos dele no caixa.` : ''),
     confirmLabel: 'Desfazer venda',
     danger: true,
     onConfirm: () => {
+      if(trocaV){
+        state.vehicles = state.vehicles.filter(x=>x.id!==trocaV.id);
+        state.transactions = state.transactions.filter(t=>t.vehicleId!==trocaV.id);
+      }
+      delete v.trocaVeiculoId; delete v.trocaValor;
       state.transactions = state.transactions.filter(t=> !(t.vehicleId===id && (t.categoria==='Venda' || t.categoria==='Comissão' || t.categoria==='Pagamento repasse')));
       // Custos previstos que foram baixados automaticamente na venda voltam a ser previstos.
       (v.custos||[]).forEach(c=>{
@@ -3083,7 +3123,18 @@ function vehSlack(v){
   else txt+=' · Sem valor anunciado';
   return `<div class="veh-slack ${atrasado?'alert':''}">${atrasado?'Prazo de venda estourado. ':''}${txt}</div>`;
 }
-function vehCanalLine(v){ return vehicleCanal(v)==='Internet' ? '<div class="veh-card-partner">🌐 Venda pela internet</div>' : ''; }
+function vehCanalLine(v){
+  let s = vehicleCanal(v)==='Internet' ? '<div class="veh-card-partner">🌐 Venda pela internet</div>' : '';
+  if(v.origemTroca && v.trocaDeId){
+    const o = state.vehicles.find(x=>x.id===v.trocaDeId);
+    s += `<div class="veh-card-partner">🔄 Recebido na troca${o?` da venda de ${esc(o.marca)} ${esc(o.modelo)}`:''}</div>`;
+  }
+  if(v.trocaVeiculoId){
+    const t = state.vehicles.find(x=>x.id===v.trocaVeiculoId);
+    if(t) s += `<div class="veh-card-partner">🔄 Recebeu ${esc(t.marca)} ${esc(t.modelo)} na troca (${fmt(v.trocaValor||t.valorCompra)})</div>`;
+  }
+  return s;
+}
 function vehSorted(list){
   const K={dias:v=>(v.status==='Vendido'||isEspeculacao(v)||vehicleEmPreparacao(v))?null:vehicleDias(v), lpd:v=>vehicleLucroPorDia(v), lucro:v=>vehicleLucroAtual(v), compra:v=>v.dataCompra?-parseLocalDate(v.dataCompra).getTime():null}[vehFilter.ord];
   if(!K) return list.slice().reverse();
@@ -3441,13 +3492,74 @@ function openSaleModal(id){
   const v = state.vehicles.find(v=>v.id===id) || {};
   if(isEspeculacao(v)){ showToast('Confirme a compra antes de registrar a venda.'); return; }
   const form = document.getElementById('form-sale');
+  form.reset();
   form.elements['id'].value = id;
   form.elements['dataVenda'].value = todayLocal();
   form.elements['valorVendido'].value = v.valorAnunciado ? toBRL(v.valorAnunciado) : '';
   form.elements['comprador'].value = v.comprador || ''; form.elements['compradorTel'].value = v.compradorTel || '';
+  tempTrocaCustos = [];
+  stToggle(); stRenderCustos();
   openModalEl('sale-modal');
 }
 function closeSaleModal(){ closeModalEl('sale-modal'); }
+
+/* ---- Veículo na troca (entra junto com a venda) ---- */
+let tempTrocaCustos = [];
+const TROCA_CAMPOS = ['t_marca','t_modelo'];
+function stToggle(){
+  const f = document.getElementById('form-sale'); if(!f) return;
+  const on = !!f.elements['temTroca'].checked;
+  document.getElementById('st-box').style.display = on ? '' : 'none';
+  TROCA_CAMPOS.concat(['t_valor']).forEach(n=>{ f.elements[n].required = on; });
+  stCalc();
+}
+function stCalc(){
+  const f = document.getElementById('form-sale'); const el = document.getElementById('st-resumo'); if(!f||!el) return;
+  if(!f.elements['temTroca'].checked){ el.textContent=''; return; }
+  const venda = parseMoney(f.elements['valorVendido'].value)||0, troca = parseMoney(f.elements['t_valor'].value)||0;
+  const dif = venda - troca;
+  el.innerHTML = venda>0 && troca>0
+    ? (dif>=0 ? `Venda ${fmt(venda)} − veículo na troca ${fmt(troca)} = <strong>${fmt(dif)} em dinheiro a receber</strong>.` : `O veículo na troca (${fmt(troca)}) vale mais que a venda (${fmt(venda)}): você paga <strong>${fmt(-dif)}</strong> de diferença.`)
+    : 'Informe o valor da venda e o valor que está entrando para ver a diferença em dinheiro.';
+}
+document.addEventListener('input', function(e){ const t=e.target; if(t && t.form && t.form.id==='form-sale' && t.name==='valorVendido') stCalc(); });
+function stAddCusto(){
+  const cat = document.getElementById('st-custo-cat').value.trim();
+  const val = parseMoney(document.getElementById('st-custo-val').value);
+  if(!cat || !val){ showToast('Informe o item e o valor previsto'); return; }
+  tempTrocaCustos.push({id:uid(), categoria:cat, descricao:'', valor:val, data:'', realizado:false});
+  document.getElementById('st-custo-cat').value=''; document.getElementById('st-custo-val').value='';
+  stRenderCustos();
+}
+function stRemoveCusto(id){ tempTrocaCustos = tempTrocaCustos.filter(c=>c.id!==id); stRenderCustos(); }
+function stRenderCustos(){
+  const el = document.getElementById('st-custos-list'); if(!el) return;
+  el.innerHTML = tempTrocaCustos.length
+    ? tempTrocaCustos.map(c=>`<div class="custo-it"><div class="ci-top"><div class="ci-nm">${esc(c.categoria)}</div><div class="ci-val mono">${fmt(c.valor)}</div></div><div class="ci-act"><span class="grow"></span><button type="button" class="btn danger small" onclick="stRemoveCusto(${jsq(c.id)})">× Remover</button></div></div>`).join('')
+    : '<div class="empty" style="padding:8px;">Nenhum item. Você pode lançar depois na aba Veículos.</div>';
+}
+// Cria (ou atualiza, nunca duplica) o veículo recebido na troca como uma compra normal em Veículos.
+function criarVeiculoTroca(vendido, t, dataVenda){
+  let nv = vendido.trocaVeiculoId ? state.vehicles.find(x=>x.id===vendido.trocaVeiculoId) : null;
+  const novo = !nv;
+  const acr = t.pedido>0 ? Math.round((t.pedido - t.valor)*100)/100 : 0;
+  const campos = {marca:t.marca, modelo:t.modelo, ano:t.ano, cor:t.cor, km:t.km, placa:t.placa,
+    valorCompra:t.valor, valorAnunciado:t.pedido>0?t.pedido:0, acrescimoTipo:'valor', acrescimo:acr,
+    fornecedor:`Troca — ${vendido.comprador||''}`.trim(), observacoes:t.obs};
+  if(novo){
+    nv = Object.assign({id:uid(), tipoOp:'compra', status:'Comprado', dataCompra:dataVenda, custos:tempTrocaCustos.map(c=>Object.assign({},c)),
+      origemTroca:true, trocaDeId:vendido.id, laudo:''}, campos);
+    state.vehicles.push(nv);
+  } else {
+    Object.assign(nv, campos);
+  }
+  // Uma única saída de compra por veículo (valor da troca). A venda entra pelo valor cheio; o líquido no caixa é venda − troca.
+  let tx = state.transactions.find(x=>x.vehicleId===nv.id && x.categoria==='Compra de veículo');
+  if(!tx){ tx = {id:uid(), categoria:'Compra de veículo', tipo:'saida', vehicleId:nv.id}; state.transactions.push(tx); }
+  tx.date = dataVenda; tx.valor = t.valor; tx.desc = `Compra (troca) ${nv.marca} ${nv.modelo}`;
+  vendido.trocaVeiculoId = nv.id; vendido.trocaValor = t.valor;
+  return nv;
+}
 
 function handleConfirmSale(ev){
   ev.preventDefault();
@@ -3463,6 +3575,16 @@ function handleConfirmSale(ev){
   const nomeC = String(fd.get('comprador')||'').trim(), telC = String(fd.get('compradorTel')||'').trim();
   if(!nomeC){ showToast('Informe o nome do comprador'); return false; }
   if(telDigits(telC).length<10){ showToast('Informe o telefone do comprador com DDD'); return false; }
+  // Veículo na troca: valida ANTES de alterar qualquer coisa (nada é salvo pela metade).
+  let troca = null;
+  if(fd.get('temTroca')){
+    troca = {marca:String(fd.get('t_marca')||'').trim(), modelo:String(fd.get('t_modelo')||'').trim(),
+      ano:String(fd.get('t_ano')||'').trim(), cor:String(fd.get('t_cor')||'').trim(), km:String(fd.get('t_km')||'').trim(),
+      placa:String(fd.get('t_placa')||'').trim(), valor:parseMoney(fd.get('t_valor'))||0, pedido:parseMoney(fd.get('t_pedido'))||0,
+      obs:String(fd.get('t_obs')||'').trim()};
+    if(!troca.marca || !troca.modelo){ showToast('Informe a marca e o modelo do veículo que está entrando na troca'); return false; }
+    if(!(troca.valor>0)){ showToast('Informe o valor do veículo que está entrando na troca'); return false; }
+  }
   v.valorVendido = valorVendido;
   v.comprador = nomeC; v.compradorTel = telC;
   v.dataVenda = dataVenda;
@@ -3512,9 +3634,10 @@ function handleConfirmSale(ev){
     // saída antiga para não deixar uma comissão indevida no caixa.
     state.transactions = state.transactions.filter(t=>t!==txComissao);
   }
+  if(troca) criarVeiculoTroca(v, troca, dataVenda);
   closeSaleModal();
   const ok = saveState(); render();
-  if(ok) showToast(`Venda registrada. Lucro líquido: ${fmt(lucro)}${custosBaixados?` · ${custosBaixados} custo(s) previsto(s) baixado(s) do caixa`:''}`);
+  if(ok) showToast(`Venda registrada. Lucro líquido: ${fmt(lucro)}${custosBaixados?` · ${custosBaixados} custo(s) previsto(s) baixado(s) do caixa`:''}${troca?` · ${troca.marca} ${troca.modelo} entrou em Veículos (troca)`:''}` + avisoCaixa());
   return false;
 }
 
