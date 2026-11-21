@@ -12,7 +12,7 @@ Sistema de gestão da operação de **repasse de veículos** (e compra e revenda
 
 ### 1) Supabase (banco e login)
 1. Crie uma conta em supabase.com e um **projeto novo** só da SMZ.
-2. Menu **SQL Editor** > New query > cole o conteúdo de `supabase/schema.sql` > **Run**.
+2. Menu **SQL Editor** > New query > cole o conteúdo de `supabase/schema.sql` > **Run** (ele já inclui as permissões da API; sem elas o login mostra "permission denied for table members").
 3. Menu **Authentication > Providers > Email**: desligue **Allow new users to sign up** (só você e o sócio entram).
 4. Menu **Authentication > Users > Add user**: crie o usuário de cada sócio (e-mail e senha; marque *Auto Confirm User*).
 5. No **SQL Editor**, rode (trocando e-mail e nome) uma vez para cada sócio:
@@ -20,8 +20,12 @@ Sistema de gestão da operação de **repasse de veículos** (e compra e revenda
    insert into public.members (user_id, nome)
    select id, 'Seu Nome' from auth.users where email = 'voce@email.com';
    ```
-6. Menu **Project Settings > API**: copie a **Project URL** e a chave **anon public**.
-7. Abra `public/config.js` e cole nas duas linhas `SUPABASE_URL` e `SUPABASE_ANON_KEY`. Deixe `LOCAL_TEST: false`.
+6. Copie dois dados do projeto:
+   - **Project URL**: aparece em *Project Settings > General* e no botão **Connect** no topo do painel.
+   - **Chave pública**: menu **Settings > API Keys**. Use a **Publishable key**, que começa com `sb_publishable_`. Se aparecer o botão *Create new API keys*, clique nele primeiro.
+   - Se o login não funcionar com ela, use a chave antiga **anon**, na aba *Legacy API Keys* (começa com `eyJ`).
+   - **Nunca** use a *Secret key* (`sb_secret_`) nem a `service_role`: elas dão acesso total ao banco e não podem ficar no site.
+7. Abra `public/config.js` e cole nas duas linhas `SUPABASE_URL` e `SUPABASE_ANON_KEY` (a chave pública vai nessa segunda linha). Deixe `LOCAL_TEST: false`.
 
 ### 2) GitHub
 1. Crie um repositório **privado** em github.com.

@@ -35,6 +35,13 @@ create policy state_read    on public.app_state          for select to authentic
 create policy state_update  on public.app_state          for update to authenticated using (public.is_member()) with check (public.is_member());
 create policy history_read  on public.app_state_history  for select to authenticated using (public.is_member());
 
+-- Permissões da API (projetos novos do Supabase não liberam tabelas automaticamente; sem isto o login dá
+-- "permission denied for table members"). Só o necessário, e as políticas acima continuam valendo.
+grant select           on public.members           to authenticated;
+grant select, update   on public.app_state         to authenticated;
+grant select           on public.app_state_history to authenticated;
+grant execute on function public.is_member() to authenticated;
+
 -- Controle de versão: só grava se a versão for a seguinte; guarda histórico (últimas 100)
 create or replace function public.app_state_before() returns trigger
 language plpgsql security definer set search_path = public as $$

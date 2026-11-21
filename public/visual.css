@@ -25,7 +25,7 @@
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;background:var(--bg);color:var(--tx);font-family:var(--font);font-size:15px;line-height:1.45;-webkit-font-smoothing:antialiased}
-body{min-height:100vh;padding-bottom:calc(104px + env(safe-area-inset-bottom,0px))}
+body{min-height:100vh;padding-bottom:calc(104px + var(--dock-lift,0px) + env(safe-area-inset-bottom,0px))}
 button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer}
 input,select{font:inherit;color:inherit}
 :focus-visible{outline:2px solid var(--acc);outline-offset:2px;border-radius:8px}
@@ -60,7 +60,7 @@ body.hide .m{filter:blur(7px);user-select:none}
 .btn.neg{background:var(--neg);color:#1c0505}
 
 /* dock (mobile) */
-.dock{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(14px + env(safe-area-inset-bottom,0px));z-index:30;display:flex;gap:4px;padding:6px;border-radius:999px;background:var(--dock);backdrop-filter:blur(18px) saturate(1.4);-webkit-backdrop-filter:blur(18px) saturate(1.4);box-shadow:0 10px 30px rgba(0,0,0,.35),0 0 0 1px var(--line2);max-width:calc(100vw - 20px)}
+.dock{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(14px + var(--dock-lift,0px) + env(safe-area-inset-bottom,0px));z-index:30;display:flex;gap:4px;padding:6px;border-radius:999px;background:var(--dock);backdrop-filter:blur(18px) saturate(1.4);-webkit-backdrop-filter:blur(18px) saturate(1.4);box-shadow:0 10px 30px rgba(0,0,0,.35),0 0 0 1px var(--line2);max-width:calc(100vw - 20px)}
 .dock button{height:46px;min-width:46px;border-radius:999px;display:flex;align-items:center;justify-content:center;gap:7px;color:var(--mut);padding:0 12px;font-weight:700;font-size:13px;transition:background .2s,color .2s}
 .dock button span{display:none;white-space:nowrap}
 .dock button.on{background:var(--acc);color:var(--acc-ink)}
@@ -526,3 +526,13 @@ tbody tr:last-child td{border-bottom:0}
 .cli-act{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-top:6px;padding-top:14px;border-top:1px solid var(--line)}
 .cli .cr{display:flex;justify-content:space-between;align-items:center;gap:12px;font-size:14px;color:var(--tx2)}.cli .cr b{color:var(--tx);text-align:right}
 #msgtpl{width:100%;box-sizing:border-box;min-height:88px;padding:12px 14px;border-radius:12px;border:1px solid var(--line);background:var(--s2);color:var(--tx);font:inherit;line-height:1.5;resize:vertical}
+
+/* Menu do celular sobe para ficar acima do selo "Powered by Netlify" (plano Free), que fica no canto inferior direito.
+   Se um dia o selo for removido (plano pago), troque 52px por 0px. */
+:root{--dock-lift:52px}
+/* menu do celular com 7 itens: botões mais compactos para a aba ativa nunca ser cortada */
+@media(max-width:480px){
+  .dock{gap:2px;padding:5px}
+  .dock button,.dock button{min-width:40px;height:44px;padding:0 9px;gap:5px;font-size:12.5px}
+}
+@media(max-width:370px){.dock button.on span{display:none}}
