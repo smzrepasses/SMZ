@@ -174,8 +174,9 @@
       <div class="form-grid">
         <div><label>Data da Venda</label><input type="date" name="dataVenda" required></div>
         <div><label>Valor Vendido (R$)</label><input type="text" inputmode="decimal" class="money-input" onblur="formatMoneyOnBlur(event)" name="valorVendido" required></div>
-        <div style="grid-column:1/-1"><label>Nome do comprador</label><input name="comprador" required placeholder="Nome de quem comprou"></div>
-        <div style="grid-column:1/-1"><label>Telefone do comprador (com DDD)</label><input name="compradorTel" required inputmode="tel" placeholder="(11) 99999-9999" oninput="maskTel(this)"></div>
+        <div id="sale-garagem-hint" class="vm-hint" style="grid-column:1/-1;display:none">🤝 Venda pela garagem parceira: o comprador é cliente da loja, então nome e telefone são <strong>opcionais</strong>.</div>
+        <div style="grid-column:1/-1"><label>Nome do comprador <span id="sale-opc1" style="display:none;font-weight:500">(opcional)</span></label><input name="comprador" required placeholder="Nome de quem comprou"></div>
+        <div style="grid-column:1/-1"><label>Telefone do comprador (com DDD) <span id="sale-opc2" style="display:none;font-weight:500">(opcional)</span></label><input name="compradorTel" required inputmode="tel" placeholder="(11) 99999-9999" oninput="maskTel(this)"></div>
       </div>
       <label class="vm-check" style="margin-top:14px!important"><input type="checkbox" name="temTroca" onchange="stToggle()"> 🔄 Entra um veículo na troca?</label>
       <div id="st-box" style="display:none">
@@ -3497,6 +3498,10 @@ function openSaleModal(id){
   form.elements['dataVenda'].value = todayLocal();
   form.elements['valorVendido'].value = v.valorAnunciado ? toBRL(v.valorAnunciado) : '';
   form.elements['comprador'].value = v.comprador || ''; form.elements['compradorTel'].value = v.compradorTel || '';
+  const viaGaragem = v.status==='Garagem Parceira';
+  form.elements['comprador'].required = !viaGaragem; form.elements['compradorTel'].required = !viaGaragem;
+  document.getElementById('sale-garagem-hint').style.display = viaGaragem ? '' : 'none';
+  document.getElementById('sale-opc1').style.display = document.getElementById('sale-opc2').style.display = viaGaragem ? '' : 'none';
   tempTrocaCustos = [];
   stToggle(); stRenderCustos();
   openModalEl('sale-modal');
@@ -3573,8 +3578,11 @@ function handleConfirmSale(ev){
   if(!dataVenda){ showToast('Informe a data da venda'); return false; }
   if(v.dataCompra && dataVenda < v.dataCompra){ showToast('A data da venda não pode ser anterior à data da compra'); return false; }
   const nomeC = String(fd.get('comprador')||'').trim(), telC = String(fd.get('compradorTel')||'').trim();
-  if(!nomeC){ showToast('Informe o nome do comprador'); return false; }
-  if(telDigits(telC).length<10){ showToast('Informe o telefone do comprador com DDD'); return false; }
+  const viaGaragem = v.status==='Garagem Parceira'; // cliente da loja parceira: comprador opcional
+  if(!viaGaragem){
+    if(!nomeC){ showToast('Informe o nome do comprador'); return false; }
+    if(telDigits(telC).length<10){ showToast('Informe o telefone do comprador com DDD'); return false; }
+  } else if(telC && telDigits(telC).length<10){ showToast('Telefone incompleto: informe com DDD ou deixe em branco'); return false; }
   // Veículo na troca: valida ANTES de alterar qualquer coisa (nada é salvo pela metade).
   let troca = null;
   if(fd.get('temTroca')){

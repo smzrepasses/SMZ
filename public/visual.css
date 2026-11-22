@@ -557,3 +557,15 @@ tbody tr:last-child td{border-bottom:0}
 /* folhas/modais também sobem acima do selo Netlify (canto inferior direito) */
 .modal,.sheet{padding-bottom:calc(22px + 72px + env(safe-area-inset-bottom,0px))}
 @media(min-width:1020px){body{padding-bottom:90px}}
+
+/* logo do início: banner largo, preenchendo a largura da tela */
+.top{flex-wrap:wrap;justify-content:flex-end}
+.top .brand{flex:0 0 100%;order:-1}
+.brand img.logo-img,.logo-img{display:block;width:100%;height:auto;aspect-ratio:1400/572;max-width:none;object-fit:cover;background:#000;border-radius:16px;box-shadow:0 6px 20px rgba(0,0,0,.28)}
+#ac-login .ac-logo{max-width:420px;border-radius:16px}
+.modal.onboard .logo-mini{height:auto;width:100%;max-width:340px}
+@media(min-width:1020px){
+  .top{justify-content:space-between;flex-wrap:nowrap;align-items:center;padding:18px 28px 0}
+  .top .brand{display:block;flex:0 1 460px;order:0}
+  .rail .rb img{display:none}
+}
