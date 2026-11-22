@@ -378,6 +378,26 @@ function custosBlock(v){
   return`<div class="cblock"><div class="ch2"><b>Custos e preparação</b><span class="num">${M(fm(tot))}</span></div>${cs.map(c=>`<div class="ci"><div class="ci-l"><span class="ci-n">${E(c.categoria||'Custo')}</span>${c.descricao?`<span class="ci-d">${E(c.descricao)}</span>`:''}</div><div class="ci-r"><b class="num">${M(fm(c.valor))}</b><span class="pill ${c.realizado?'pos':'warn'}">${c.realizado?'Pago':'Previsto'}</span></div></div>`).join('')}${pv>0?`<div class="ci-foot"><span>Previsto / reservado</span><b class="num">${M(fm(pv))}</b></div>`:''}</div>`;
 }
 
+// Linha do tempo do veículo: preparação (sem limite de dias) + tempo de venda (com indicador vs. meta).
+function vtimeline(v,s){
+  if(s!=='prep'&&s!=='venda'&&s!=='vendido')return'';
+  const vend=s==='vendido',MD=META_DIAS_ESTOQUE,disp=v.dataDisponivel||'';
+  const prep=vehicleDiasPreparacao(v);
+  const venda=vend?vehicleDias(v):(disp?Math.max(0,daysBetween(disp)):0);
+  const tot=Math.max(1,prep+venda),pp=prep/tot*100,vp=venda/tot*100;
+  const sev=venda>MD*2?'neg':venda>MD?'warn':'pos';
+  const seg=(w,cls)=>`<i class="${cls}" style="flex:${Math.max(w,6)} 1 0"></i>`;
+  const bar=(prep>0?seg(pp,'tp'):'')+(venda>0?seg(vp,'tv '+sev):'')||'<i class="tp" style="flex:1 1 0;opacity:.35"></i>';
+  const cell=(k,v1,v2,cls,cx)=>`<div class="tlc ${cx||''}"><small>${k}</small><b class="num ${cls||''}">${v1}</b><em>${v2||'&nbsp;'}</em></div>`;
+  const fimV=vend?dBR(v.dataVenda):'hoje';
+  const c1=cell('Compra',dBR(v.dataCompra),M(fm(v.valorCompra)),'','c0');
+  const c2=cell('Preparação',prep+' dia(s)',disp?dBR(v.dataCompra)+' → '+dBR(disp):(vend?'sem registro':'em andamento · sem limite'),'warn-t','c1');
+  const c3=cell('À venda',disp||vend?venda+' dia(s)':'aguardando',disp?dBR(disp)+' → '+fimV:(vend?dBR(v.dataCompra)+' → '+fimV:'ainda em preparação'),(disp||vend)?sev+'-t':'','c2');
+  const c4=vend?cell('Vendido',dBR(v.dataVenda),M(fm(v.valorVendido)),'','c3'):'';
+  const ind=(disp||vend)?`<div class="tlnote ${sev}">${vend?'Vendeu em':'À venda há'} <b>${venda} dia(s)</b> · meta: até ${MD} dias${venda>MD?' (acima da meta)':' (dentro da meta)'}</div>`:'';
+  return`<div class="tl"><div class="tlbar" role="img" aria-label="Preparação ${prep} dias, à venda ${venda} dias">${bar}</div><div class="tlg ${vend?'g4':'g3'}">${c1}${c2}${c3}${c4}</div>${ind}</div>`;
+}
+
 function vcard(v){
   const s=stageOf(v),open=S.open[v.id],lucro=vehicleLucroAtual(v),mp=margemProj(v),cr=(l,x)=>`<div class="cr"><span>${l}</span><b class="num">${x}</b></div>`;
   const showMeter=s==='prep'||s==='venda',dm=showMeter?dias_(v):0,MD=META_DIAS_ESTOQUE,sev=dm>MD*2?'neg':dm>MD?'warn':'pos',pw=Math.min(100,dm/45*100);
@@ -401,8 +421,8 @@ function vcard(v){
   let ev='';
   if(s==='esp'){try{const a=avaliarEspeculacao(v);ev=`<div class="verdict ${{good:'pos',warn:'warn',bad:'neg'}[a.tone]||''}" style="margin-top:10px"><div><b>${a.veredito}</b>${a.resumo}</div></div><div class="espv">${a.checks.map(c=>`<div>${c.ok?'✅':(c.critical?'❌':'⚠️')} ${c.txt}</div>`).join('')}</div>`}catch(e){}}
   return`<article class="veh enter ${open?'open':''}" data-act="open" data-id="${E(v.id)}" tabindex="0" style="cursor:pointer">
-    <div class="h"><div class="mg">${E(String(v.marca||'?').slice(0,2).toUpperCase())}</div><div class="grow" style="flex:1;min-width:0"><div class="t" style="font-weight:800;font-size:16px;letter-spacing:-.01em">${E(nomeV(v))}</div><div style="display:flex;gap:8px;align-items:center;margin-top:4px;flex-wrap:wrap">${v.placa&&String(v.placa).trim()?`<span class="plate">${E(String(v.placa).trim().toUpperCase())}</span>`:''}${v.ano?`<span class="k">${E(v.ano)}</span>`:''}</div></div><div style="display:flex;flex-direction:column;align-items:flex-end;gap:8px"><span class="pill ${pill[1]}">${pill[0]}</span><span class="chev">${ic('chev','sm')}</span></div></div>
-    ${showMeter?`<div class="meter" role="img" aria-label="${dm} dias"><i style="width:${pw}%;background:var(--${sev})"></i><u style="left:${MD/45*100}%"></u></div><div style="display:flex;justify-content:space-between;font-size:12px;color:var(--tx2)"><span>${s==='prep'?'Em preparação há':'À venda há'} <b style="color:var(--tx)">${dm} dias</b></span><span>meta: ${MD} dias</span></div>`:''}
+    <div class="h"><div class="mg">${E(String(v.marca||'?').slice(0,2).toUpperCase())}</div><div class="grow" style="flex:1;min-width:0"><div class="t" style="font-weight:800;font-size:16px;letter-spacing:-.01em">${E(nomeV(v))}</div><div style="display:flex;gap:8px;align-items:center;margin-top:4px;flex-wrap:wrap">${v.placa&&String(v.placa).trim()?`<span class="plate"><i>BR</i><b>${E(String(v.placa).trim().toUpperCase())}</b></span>`:''}${v.ano?`<span class="k">${E(v.ano)}</span>`:''}</div></div><div style="display:flex;flex-direction:column;align-items:flex-end;gap:8px"><span class="pill ${pill[1]}">${pill[0]}</span><span class="chev">${ic('chev','sm')}</span></div></div>
+    ${vtimeline(v,s)}
     <div class="vgrid">${grid}</div>
     <div class="more">${meta||link?`<div class="meta-l">${meta}${link}</div>`:''}${det}${ev}<div class="vact">${vActions(v,s)}</div></div>
   </article>`;

@@ -174,7 +174,9 @@ details.tbl th{color:var(--mut);font-weight:600}
 /* vehicles */
 .veh{background:var(--s1);border-radius:20px;padding:15px;box-shadow:var(--shadow)}
 .veh .h{display:flex;gap:12px;align-items:flex-start}
-.plate{font-size:11.5px;font-weight:700;letter-spacing:.06em;color:var(--tx2);background:var(--s3);padding:2px 7px;border-radius:6px}
+.plate{display:inline-flex;align-items:stretch;background:#fff;border:1.5px solid #1b3f94;border-radius:6px;overflow:hidden;line-height:1}
+.plate i{background:#1b3f94;color:#fff;font-style:normal;font-size:8px;font-weight:800;letter-spacing:.04em;padding:0 5px;display:flex;align-items:center}
+.plate b{color:#1a1a1a;font-size:14px;font-weight:800;letter-spacing:.16em;padding:4px 9px 4px 10px;font-family:'Roboto Mono',ui-monospace,Menlo,monospace}
 .meter{height:8px;border-radius:5px;background:var(--s3);position:relative;margin:9px 0 5px}
 .meter i{position:absolute;left:0;top:0;bottom:0;border-radius:5px}
 .meter u{position:absolute;top:-4px;bottom:-4px;width:2px;background:var(--tx);opacity:.55;border-radius:1px;text-decoration:none}
@@ -528,11 +530,30 @@ tbody tr:last-child td{border-bottom:0}
 #msgtpl{width:100%;box-sizing:border-box;min-height:88px;padding:12px 14px;border-radius:12px;border:1px solid var(--line);background:var(--s2);color:var(--tx);font:inherit;line-height:1.5;resize:vertical}
 
 /* Menu do celular sobe para ficar acima do selo "Powered by Netlify" (plano Free), que fica no canto inferior direito.
-   Se um dia o selo for removido (plano pago), troque 52px por 0px. */
-:root{--dock-lift:52px}
+   Se um dia o selo for removido (plano pago), troque 100px por 0px. */
+:root{--dock-lift:100px}
 /* menu do celular com 7 itens: botões mais compactos para a aba ativa nunca ser cortada */
 @media(max-width:480px){
   .dock{gap:2px;padding:5px}
   .dock button,.dock button{min-width:40px;height:44px;padding:0 9px;gap:5px;font-size:12.5px}
 }
 @media(max-width:370px){.dock button.on span{display:none}}
+
+/* linha do tempo do veículo (preparação + venda) */
+.tl{margin-top:12px;background:var(--s2);border-radius:16px;padding:12px 12px 10px}
+.tlbar{display:flex;gap:3px;height:8px;margin-bottom:12px}
+.tlbar i{border-radius:5px;display:block}
+.tlbar .tp{background:linear-gradient(90deg,#C96A00,#F5A524)}
+.tlbar .tv{background:linear-gradient(90deg,#0E9F63,#2BD9A0)}.tlbar .tv.warn{background:linear-gradient(90deg,#B86E00,#EDA100)}.tlbar .tv.neg{background:linear-gradient(90deg,#B23030,#EF6A68)}
+.tlg{display:grid;gap:8px}.tlg.g3{grid-template-columns:repeat(3,minmax(0,1fr))}.tlg.g4{grid-template-columns:repeat(2,minmax(0,1fr))}
+@media(min-width:700px){.tlg.g4{grid-template-columns:repeat(4,minmax(0,1fr))}}
+.tlc{padding-left:9px;border-left:2px solid var(--line2);min-width:0}
+.tlc.c1{border-color:#E08A00}.tlc.c2{border-color:var(--pos)}.tlc.c3{border-color:var(--c1)}
+.tlc small{display:block;font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--mut)}
+.tlc b{display:block;font-size:15px;font-weight:800;margin-top:1px}
+.tlc em{display:block;font-style:normal;font-size:10.5px;color:var(--mut);margin-top:1px}
+.tlnote{margin-top:10px;font-size:12px;color:var(--tx2)}.tlnote.warn b{color:var(--warn)}.tlnote.neg b{color:var(--neg)}.tlnote.pos b{color:var(--pos)}
+
+/* folhas/modais também sobem acima do selo Netlify (canto inferior direito) */
+.modal,.sheet{padding-bottom:calc(22px + 72px + env(safe-area-inset-bottom,0px))}
+@media(min-width:1020px){body{padding-bottom:90px}}
