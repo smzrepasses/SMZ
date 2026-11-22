@@ -24,10 +24,23 @@
   <div>
     <header class="top">
       <div class="brand"><img class="logo-img" alt="SMZ Repasses" src="logo-smz.webp"></div>
+      <div class="topdate" id="topdate"></div>
       <button class="iconbtn" id="eye" aria-label="Ocultar valores" title="Ocultar valores"></button>
       <button class="iconbtn" id="theme" aria-label="Alternar tema claro e escuro" title="Tema claro/escuro"></button>
       <button class="me" id="me" type="button" title="Conta" aria-label="Conta e backup">C</button>
     </header>
+    <script>
+    (function(){
+      function dataTopo(){
+        try{
+          var d=new Date(),meses=['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
+          var el=document.getElementById('topdate'); if(el){ var dd=('0'+d.getDate()).slice(-2), mm=('0'+(d.getMonth()+1)).slice(-2);
+            el.innerHTML='<span class="dl">PAULÍNIA, '+d.getDate()+' de '+meses[d.getMonth()]+' de '+d.getFullYear()+'</span><span class="dc">PAULÍNIA, '+dd+'/'+mm+'/'+d.getFullYear()+'</span>'; }
+        }catch(e){}
+      }
+      dataTopo(); setInterval(dataTopo,600000); document.addEventListener('visibilitychange',dataTopo);
+    })();
+    </script>
     <main class="page" id="view"></main>
   </div>
 </div>

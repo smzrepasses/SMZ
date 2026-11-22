@@ -530,8 +530,8 @@ tbody tr:last-child td{border-bottom:0}
 #msgtpl{width:100%;box-sizing:border-box;min-height:88px;padding:12px 14px;border-radius:12px;border:1px solid var(--line);background:var(--s2);color:var(--tx);font:inherit;line-height:1.5;resize:vertical}
 
 /* Menu do celular sobe para ficar acima do selo "Powered by Netlify" (plano Free), que fica no canto inferior direito.
-   Se um dia o selo for removido (plano pago), troque 100px por 0px. */
-:root{--dock-lift:100px}
+   Se um dia o selo for removido (plano pago), troque 64px por 0px. */
+:root{--dock-lift:64px}
 /* menu do celular com 7 itens: botões mais compactos para a aba ativa nunca ser cortada */
 @media(max-width:480px){
   .dock{gap:2px;padding:5px}
@@ -569,3 +569,15 @@ tbody tr:last-child td{border-bottom:0}
   .top .brand{display:block;flex:0 1 460px;order:0}
   .rail .rb img{display:none}
 }
+
+/* data (cidade) na linha dos botões */
+.topdate{flex:1 1 0;min-width:0;font-size:12px;font-weight:700;letter-spacing:.03em;color:var(--tx2);line-height:1.25}
+.top{gap:8px}
+@media(min-width:1020px){.topdate{text-align:right;font-size:13px;padding-right:6px}}
+@media(max-width:700px){.topdate{font-size:11.5px;letter-spacing:0}.top .iconbtn,.top .me{width:38px;height:38px}}
+
+/* data SEMPRE em uma linha: nunca quebra; no celular usa o formato curto dd/mm/aaaa */
+.topdate{white-space:nowrap!important;overflow:hidden;text-overflow:ellipsis}
+.topdate .dl,.topdate .dc{white-space:nowrap}
+.topdate .dc{display:none}
+@media(max-width:700px){.topdate .dl{display:none}.topdate .dc{display:inline}}
