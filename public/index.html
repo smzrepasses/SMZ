@@ -1872,6 +1872,10 @@ function auditFinancialIntegrity(){
       erros.push({tipo:'VEICULO_VENDIDO_SEM_TX_VENDA', vehicleId:v.id,
         detalhe:`Veículo "${v.id}" (${v.marca||''} ${v.modelo||''}) está marcado como Vendido, mas não possui transaction de Venda.`});
     }
+    if(v.status!=='Vendido' && vendas.length>0){
+      erros.push({tipo:'VENDA_SEM_VEICULO_VENDIDO', vehicleId:v.id,
+        detalhe:`Veículo \"${v.id}\" (${v.marca||''} ${v.modelo||''}) tem transaction de Venda no caixa, mas NÃO está marcado como Vendido — o capital fica contado em dobro (caixa + estoque).`});
+    }
     const compras = transactions.filter(t=>t.vehicleId===v.id && t.categoria==='Compra de veículo');
     if(!isEspeculacao(v) && !isDesistencia(v) && !isRepasse(v) && compras.length===0){
       erros.push({tipo:'VEICULO_COMPRADO_SEM_TX_COMPRA', vehicleId:v.id,
@@ -4658,6 +4662,24 @@ function commitState(candidate){
 }
 
 /* ---------- fusão de versões (3 vias: base = última versão sincronizada) ---------- */
+/* Registro editado nos dois aparelhos ao mesmo tempo: junta CAMPO A CAMPO (3 vias).
+   Antes, o registro inteiro do aparelho local vencia e apagava, por exemplo, a venda feita no outro aparelho
+   (status, valorVendido, dataVenda, troca), deixando o carro "em estoque" e contando o capital em dobro. */
+function acMergeRecord(B,L,R){
+  const isObj = x => x && typeof x==='object' && !Array.isArray(x);
+  if(!isObj(B)||!isObj(L)||!isObj(R)) return L;
+  const out = {};
+  [...new Set([...Object.keys(R),...Object.keys(L),...Object.keys(B)])].forEach(key=>{
+    const lc = acJ(L[key])!==acJ(B[key]), rc = acJ(R[key])!==acJ(B[key]);
+    let pick;
+    if(!lc) pick = R[key];
+    else if(!rc) pick = L[key];
+    else if(Array.isArray(L[key]) && Array.isArray(R[key]) && Array.isArray(B[key] || [])) pick = acMergeList(key, B[key]||[], L[key], R[key]);
+    else pick = L[key];
+    if(pick!==undefined) out[key]=pick;
+  });
+  return out;
+}
 function acMergeList(k,B,L,R){
   const hasId = a => a.every(x=>x && x.id!=null);
   if(!hasId(L)||!hasId(R)||!hasId(B)) return acJ(L)!==acJ(B) ? L : R;
@@ -4671,7 +4693,8 @@ function acMergeList(k,B,L,R){
     let pick;
     if(!lc) pick=rr; else if(!rc) pick=ll;
     else if(ll===undefined) pick=rr; else if(rr===undefined) pick=ll;
-    else pick = (k==='avisos') ? Object.assign({},rr,{lidoPor:[...new Set([...(rr.lidoPor||[]),...(ll.lidoPor||[])])]}) : ll;
+    else if(k==='avisos') pick = Object.assign({},rr,{lidoPor:[...new Set([...(rr.lidoPor||[]),...(ll.lidoPor||[])])]});
+    else pick = acMergeRecord(bb, ll, rr);
     if(pick!==undefined) res.push(pick);
   });
   if(k==='auditLog'){ res.sort((x,y)=>String(x.ts).localeCompare(String(y.ts))); return res.slice(-AUDIT_LOG_MAX); }
