@@ -1,3 +1,20 @@
+# SMZ Repasses · Gestão (versão nova)
+
+## O que mudou nesta versão
+- **Sem sócios**: sumiram a divisão de lucro, a escolha de sócio nos aportes e retiradas e qualquer tela por pessoa. Aportes e retiradas continuam existindo, só como movimentos seus (aba **Aportes e retiradas**).
+- **Sem aba Resultado**: os cards dela foram para onde fazem sentido, com gráficos:
+  - **Financeiro**: resultado do mês (cascata do lucro ao líquido), últimos meses, quanto precisa ficar no caixa, pendências (comissões, a receber, boletos) e despesas fixas e impostos.
+  - **Veículos**: vendas do mês e custos além do carro.
+  - **Visão executiva**: capital investido e em risco e o que realmente gera lucro.
+  - **Parceiros**: comissões a pagar. **Clientes**: a receber e boletos. **Painel**: alertas de caixa e pendências.
+- **Análises em gráficos** (`public/graficos.js`), só os que respondem uma pergunta. Gráficos sem dado suficiente (um único mês, uma única fatia, campo não preenchido) ficam escondidos em vez de aparecer vazios. A lógica de despesas, impostos e pendências está em `public/gestao.js`. O `sw.js` lista os dois.
+- Os dados atuais continuam valendo; os campos novos (despesas fixas, regras) nascem vazios.
+
+## Testar antes do deploy
+Abra `SMZ_teste_local_NOVO.html`, entre com **ADMIN / ADMIN** e clique em **Carregar dados de exemplo**. Nada disso mexe no Supabase.
+
+---
+
 # SMZ Repasses · Gestão
 
 Sistema de gestão da operação de **repasse de veículos** (e compra e revenda). Roda direto no navegador, com login e dados sincronizados entre os sócios pelo Supabase, hospedado no Netlify.
