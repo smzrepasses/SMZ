@@ -34,8 +34,7 @@
       function dataTopo(){
         try{
           var d=new Date(),meses=['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
-          var el=document.getElementById('topdate'); if(el){ var dd=('0'+d.getDate()).slice(-2), mm=('0'+(d.getMonth()+1)).slice(-2);
-            el.innerHTML='<span class="dl">PAULÍNIA, '+d.getDate()+' de '+meses[d.getMonth()]+' de '+d.getFullYear()+'</span><span class="dc">PAULÍNIA, '+dd+'/'+mm+'/'+d.getFullYear()+'</span>'; }
+          var el=document.getElementById('topdate'); if(el){ el.innerHTML='<span class="dl">'+d.getDate()+' de '+meses[d.getMonth()]+' de '+d.getFullYear()+'</span>'; }
         }catch(e){}
       }
       dataTopo(); setInterval(dataTopo,600000); document.addEventListener('visibilitychange',dataTopo);
@@ -330,8 +329,8 @@
       <div class="form-grid">
         <div><label>Data</label><input type="date" name="date" id="ap-date" required></div>
         <div><label>Valor (R$)</label><input type="text" inputmode="decimal" class="money-input val" onblur="formatMoneyOnBlur(event)" name="valor" id="ap-valor" required placeholder="0,00"></div>
-        <div style="grid-column:1/-1"><label>Sócio</label><select name="socio" id="ap-socio" style="display:none"></select><div class="pick" id="ap-socio-pick"></div></div>
-        <div style="grid-column:1/-1"><label>Origem</label><input type="text" name="origem" id="ap-origem" placeholder="Ex: aporte inicial, sócio, reforço de caixa"></div>
+        <div style="display:none"><select name="socio" id="ap-socio"></select><div class="pick" id="ap-socio-pick"></div></div>
+        <div style="grid-column:1/-1"><label>Origem</label><input type="text" name="origem" id="ap-origem" placeholder="Ex: aporte inicial, reforço de caixa"></div>
       </div>
       <div class="flex-between" style="margin-top:16px">
         <button class="btn alt" type="button" id="ap-cancel-btn" onclick="cancelEditContribution('close')">Cancelar</button>
@@ -343,12 +342,12 @@
 
 <div class="modal-bg" id="wd-modal">
   <div class="modal">
-    <h3>Retirada (pró-labore)</h3>
+    <h3>Retirada</h3>
     <form id="form-retirada" onsubmit="return handleAddWithdrawal(event)">
       <div class="form-grid">
         <div><label>Data</label><input type="date" name="date" id="wd-date" required></div>
         <div><label>Valor (R$)</label><input type="text" inputmode="decimal" class="money-input val" onblur="formatMoneyOnBlur(event)" name="valor" id="wd-valor" required placeholder="0,00"></div>
-        <div style="grid-column:1/-1"><label>Sócio</label><select name="socio" id="wd-socio" style="display:none"></select><div class="pick" id="wd-socio-pick"></div></div>
+        <div style="display:none"><select name="socio" id="wd-socio"></select><div class="pick" id="wd-socio-pick"></div></div>
         <div style="grid-column:1/-1"><label>Motivo</label><input type="text" name="motivo" id="wd-motivo"></div>
       </div>
       <div class="flex-between" style="margin-top:16px">
@@ -548,7 +547,6 @@ let state = {
   reservaOperacional: 0,
   auditLog: [],
   socios: [],
-  fechamentos: {},
   avisos: []
 };
 
@@ -1191,8 +1189,7 @@ function importBackup(event){
             reservaOperacional: 0,
             auditLog: []
           }, candidate);
-          // Meses fechados e avisos do sistema atual são preservados; o sócio é avisado da restauração.
-          state.fechamentos = Object.assign({}, estadoAnterior.fechamentos||{}, candidate.fechamentos||{});
+          // Avisos do sistema atual são preservados.
           state.avisos = (Array.isArray(candidate.avisos) && candidate.avisos.length) ? candidate.avisos : (estadoAnterior.avisos||[]);
           state.socios = estadoAnterior.socios || [];
           if(AC.user){ acEnsure(state); acAviso(state, `Backup restaurado por ${AC.nome}: todos os dados foram substituídos (${candidate.vehicles.length} veículos, ${candidate.transactions.length} lançamentos)`); }
@@ -1933,7 +1930,7 @@ function auditFinancialIntegrity(){
           motivo:`Aporte "${c.id}" não tem transaction vinculada por contributionId, e existem ${candidatosAmbíguos.length} transactions candidatas idênticas (mesma data/valor) — não é possível determinar com segurança qual pertence a este aporte.`});
       } else {
         erros.push({tipo:'APORTE_SEM_TRANSACTION', contributionId:c.id,
-          detalhe:`Aporte "${c.id}" (${c.origem||'sócio'}, ${fmt(c.valor)}) não possui transaction correspondente no caixa.`});
+          detalhe:`Aporte "${c.id}" (${c.origem||'aporte'}, ${fmt(c.valor)}) não possui transaction correspondente no caixa.`});
       }
     }
     // Duplicidade (mais de 1 tx) já é relatada em APORTE_TX_DUPLICADA (item 2).
@@ -2119,7 +2116,7 @@ function _renderActivePanel(){
   const map = {
     dashboard: [renderDashboard, renderVendas],
     veiculos:  [renderVehicles],
-    caixa:     [renderCaixa, renderMensal, acRenderFechamento],
+    caixa:     [renderCaixa, renderMensal],
     prolabore: [renderCapital, acRenderPro],
     parceiros: [renderPartners],
     executiva: [renderExecutiva]
@@ -3959,14 +3956,14 @@ function handleAddWithdrawal(ev){
     if(w){
       w.date = date; w.valor = valor; w.motivo = motivo; w.socioId = fd.get('socio')||'';
       const tx = state.transactions.find(t=>t.withdrawalId===w.id);
-      if(tx){ tx.date = date; tx.valor = valor; tx.desc = `Retirada (${acSocioNome(w.socioId)}) — ${motivo||'pró-labore'}`; }
+      if(tx){ tx.date = date; tx.valor = valor; tx.desc = motivo ? `Retirada — ${motivo}` : 'Retirada'; }
     }
     cancelEditWithdrawal();
     successMsg = 'Retirada atualizada';
   } else {
     const w = {id:uid(), date, valor, motivo, socioId: fd.get('socio')||''};
     state.withdrawals.push(w);
-    state.transactions.push({id:uid(), date:w.date, desc:`Retirada (${acSocioNome(w.socioId)}) — ${w.motivo||'pró-labore'}`, categoria:'Retirada Pró-labore', tipo:'saida', valor:w.valor, withdrawalId:w.id});
+    state.transactions.push({id:uid(), date:w.date, desc:(w.motivo ? `Retirada — ${w.motivo}` : 'Retirada'), categoria:'Retirada Pró-labore', tipo:'saida', valor:w.valor, withdrawalId:w.id});
     successMsg = 'Retirada registrada';
   }
   ev.target.reset();
@@ -4022,14 +4019,14 @@ function handleAddContribution(ev){
     if(c){
       c.date = date; c.valor = valor; c.origem = origem; c.socioId = fd.get('socio')||'';
       const tx = state.transactions.find(t=>t.contributionId===c.id);
-      if(tx){ tx.date = date; tx.valor = valor; tx.desc = c.inicial ? 'Aporte inicial — abertura da operação' : `Aporte (${acSocioNome(c.socioId)}) — ${origem||'sócio'}`; }
+      if(tx){ tx.date = date; tx.valor = valor; tx.desc = c.inicial ? 'Aporte inicial — abertura da operação' : (origem ? `Aporte — ${origem}` : 'Aporte'); }
     }
     cancelEditContribution();
     successMsg = 'Aporte atualizado';
   } else {
     const c = {id:uid(), date, valor, origem, inicial:false, transactionLinked:true, socioId: fd.get('socio')||''};
     state.contributions.push(c);
-    state.transactions.push({id:uid(), date, desc:`Aporte (${acSocioNome(c.socioId)}) — ${origem||'sócio'}`, categoria:'Aporte', tipo:'entrada', valor, contributionId:c.id});
+    state.transactions.push({id:uid(), date, desc:(origem ? `Aporte — ${origem}` : 'Aporte'), categoria:'Aporte', tipo:'entrada', valor, contributionId:c.id});
     successMsg = 'Aporte registrado';
   }
   ev.target.reset();
@@ -4537,11 +4534,11 @@ function renderExecEvolucao(){
 
 document.getElementById('cat-list').innerHTML = CATEGORIAS.map(c=>`<option value="${esc(c)}">`).join('');
 /* ============================================================
-   MÓDULO SOCIEDADE · LOGIN · SINCRONIZAÇÃO · FECHAMENTO · AVISOS
+   MÓDULO SOCIEDADE · LOGIN · SINCRONIZAÇÃO · AVISOS
    - Login Supabase (sem cadastro) e dados na nuvem com controle de versão
    - Fusão (merge de 3 vias) quando os dois sócios salvam ao mesmo tempo
-   - Aba Aportes & Pró-labore (cada lançamento registra o sócio)
-   - Coluna "Por" (quem lançou), fechamento mensal travado, avisos com OK
+   - Aportes e retiradas (no Financeiro)
+   - Coluna "Por" (quem lançou), avisos com OK
    ============================================================ */
 const AC = { sb:null, user:null, nome:'', version:0, base:null, members:[], timer:null, busy:false, again:false, dirty:false, force:false, channel:null };
 const AC_BASE_KEY = 'autocapital:syncbase:v1';
@@ -4561,17 +4558,11 @@ const acClone = x => JSON.parse(JSON.stringify(x));
 function acEnsure(s){
   if(!s || typeof s!=='object') return s;
   if(!Array.isArray(s.socios)) s.socios = [];
-  if(!s.fechamentos || typeof s.fechamentos!=='object' || Array.isArray(s.fechamentos)) s.fechamentos = {};
+  if('fechamentos' in s) delete s.fechamentos; // recurso de fechamento mensal removido
   if(!Array.isArray(s.avisos)) s.avisos = [];
   return s;
 }
 function acSocioNome(id){ const s=(state.socios||[]).find(x=>x.id===id); return s ? s.nome : '—'; }
-function acMonth(d){ return String(d||'').slice(0,7); }
-function acMonthLabel(m){
-  const [y,mo] = String(m).split('-').map(Number);
-  const n = ['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
-  return (n[mo-1]||m)+'/'+y;
-}
 function acSaldo(s){
   let v = Number(s.capitalInicial||0);
   (s.transactions||[]).forEach(t=>{ v += t.tipo==='entrada' ? Number(t.valor) : -Number(t.valor); });
@@ -4594,21 +4585,6 @@ function acPairFilter(removed, created){
     if(left.get(k)>0){ left.set(k,left.get(k)-1); cre.push(c); }
   });
   return {removed:rem, created:cre};
-}
-
-/* ---------- trava de mês fechado ---------- */
-function acClosedViolation(a,b){
-  const fech = a.fechamentos || {};
-  if(!Object.keys(fech).length) return null;
-  for(const f of ['transactions','withdrawals','contributions']){
-    const d = _diffCollection(a[f], b[f]);
-    let removed = d.removed, created = d.created;
-    if(f==='transactions'){ const p=acPairFilter(removed,created); removed=p.removed; created=p.created; }
-    const touched = [...removed, ...created, ...d.updated.flatMap(u=>[u.before,u.after])];
-    const hit = touched.find(r=>fech[acMonth(r.date)]);
-    if(hit) return `O mês ${acMonthLabel(acMonth(hit.date))} está fechado e não aceita lançamentos nem edições. Reabra o mês na aba Financeiro para alterar.`;
-  }
-  return null;
 }
 
 /* ---------- carimbo "quem lançou" ---------- */
@@ -4637,8 +4613,6 @@ function acMakeAvisos(a,c){
   if(Number(a.reservaOperacional||0)!==Number(c.reservaOperacional||0)) acAviso(c, `Reserva operacional alterada: ${fmt(a.reservaOperacional||0)} → ${fmt(c.reservaOperacional||0)}`);
   const sa=acSaldo(a), sc=acSaldo(c);
   if(sc<0 && sa>=0) acAviso(c, `⚠️ O caixa ficou negativo: ${fmt(sc)}`);
-  Object.keys(c.fechamentos).filter(k=>!(a.fechamentos||{})[k]).forEach(k=>acAviso(c, `Mês ${acMonthLabel(k)} FECHADO`));
-  Object.keys(a.fechamentos||{}).filter(k=>!c.fechamentos[k]).forEach(k=>acAviso(c, `Mês ${acMonthLabel(k)} REABERTO`));
 }
 
 /* ---------- gravação: passa pelas regras da sociedade e depois pela gravação segura original ---------- */
@@ -4646,13 +4620,6 @@ function commitState(candidate){
   acEnsure(candidate); if(_auditBaseline) acEnsure(_auditBaseline);
   const base = _auditBaseline;
   if(base && AC.user){
-    const viol = acClosedViolation(base, candidate);
-    if(viol){
-      showToast('🔒 '+viol, 'error');
-      _rollbackStateToLastSaved(); acEnsure(state);
-      render();
-      return false;
-    }
     acStamp(base, candidate);
     acMakeAvisos(base, candidate);
   }
@@ -4731,7 +4698,7 @@ function acMerge(base, local, remote){
   Object.keys(local).forEach(k=>{
     const L=local[k], R=remote[k], B=base[k];
     if(Array.isArray(L)||Array.isArray(R)) out[k] = acMergeList(k, B||[], L||[], R||[]);
-    else if(k==='monthlyGoals'||k==='fechamentos') out[k] = acMergeMap(B||{}, L||{}, R||{});
+    else if(k==='monthlyGoals') out[k] = acMergeMap(B||{}, L||{}, R||{});
     else if(acJ(L)!==acJ(B)) out[k] = L;
   });
   out.schemaVersion = Math.max(Number(local.schemaVersion)||0, Number(remote.schemaVersion)||0);
@@ -4972,66 +4939,6 @@ function acRenderPro(){
     if(el.dataset.sig!==sig){ el.innerHTML = acSocioOptions(AC.user&&AC.user.id); el.dataset.sig = sig; }
   });
 }
-/* ---------- fechamento mensal ---------- */
-function acMonthEnded(m){
-  const [y,mo] = m.split('-').map(Number);
-  const last = new Date(y, mo, 0); const hoje = new Date(); hoje.setHours(0,0,0,0);
-  return hoje > last;
-}
-function acFechData(){
-  const meses = new Set(Object.keys(state.fechamentos||{}));
-  state.transactions.forEach(t=>{ if(t.date) meses.add(acMonth(t.date)); });
-  return [...meses].filter(Boolean).sort().reverse().map(m=>{
-    const tx = state.transactions.filter(t=>acMonth(t.date)===m);
-    const ent = tx.filter(t=>t.tipo==='entrada').reduce((a,t)=>a+Number(t.valor),0);
-    const sai = tx.filter(t=>t.tipo==='saida').reduce((a,t)=>a+Number(t.valor),0);
-    const op = tx.filter(t=>t.tipo==='entrada'&&t.categoria!=='Aporte').reduce((a,t)=>a+Number(t.valor),0)
-             - tx.filter(t=>t.tipo==='saida'&&t.categoria!=='Retirada Pró-labore').reduce((a,t)=>a+Number(t.valor),0);
-    return {m, ent, sai, op, fech: state.fechamentos[m]};
-  });
-}
-function acRenderFechamento(){
-  const el = document.getElementById('ac-fech'); if(!el) return;
-  const data = acFechData();
-  el.innerHTML = `<div class="section-title" style="margin-top:26px;">Fechamento Mensal
-      <button type="button" class="btn alt small" style="flex:none" onclick="acExportFech()">Exportar CSV</button></div>
-    <p style="opacity:.75;font-size:13px;margin:0 0 10px">O mês só pode ser fechado depois que terminar. Fechado, ele não aceita lançamentos nem edições (só reabrindo).</p>
-    <div class="table-wrap"><table class="ac-tbl"><thead><tr><th>Mês</th><th>Entradas</th><th>Saídas</th><th>Resultado operacional*</th><th>Status</th><th></th></tr></thead><tbody>
-    ${data.length ? data.map(d=>`<tr><td>${esc(acMonthLabel(d.m))}</td><td class="pos">${fmt(d.ent)}</td><td class="neg">${fmt(d.sai)}</td><td class="${d.op<0?'neg':'pos'}">${fmt(d.op)}</td>
-      <td>${d.fech?`<span class="ac-lock">🔒 Fechado por ${esc(d.fech.por||'')} em ${new Date(d.fech.em).toLocaleDateString('pt-BR')}</span>`:(acMonthEnded(d.m)?'<span class="ac-ok">Aberto — pronto para fechar</span>':'Em andamento')}</td>
-      <td>${d.fech?`<button class="btn alt small" onclick="acReabrirMes('${d.m}')">Reabrir</button>`:(acMonthEnded(d.m)?`<button class="btn small" onclick="acFecharMes('${d.m}')">Fechar mês</button>`:'')}</td></tr>`).join('') : emptyRow(6,'Sem movimentações ainda.')}
-    </tbody></table></div><p style="opacity:.65;font-size:12px;margin:8px 0 0">* Entradas sem aportes menos saídas sem retiradas.</p>`;
-}
-function acFecharMes(m){
-  if(!acMonthEnded(m)){ showToast('O mês só pode ser fechado depois que terminar.'); return; }
-  const lb = acMonthLabel(m);
-  showConfirm({
-    title: `Fechar ${lb}?`,
-    message: `Antes de fechar, confirme:\n\n• Todas as compras, vendas, custos, aportes e retiradas de ${lb} já foram lançados — inclusive os do último dia?\n• Vocês dois conferiram o resultado do mês?\n\nDepois de fechado, o mês não aceita novos lançamentos nem edições (só reabrindo).`,
-    confirmLabel: 'Sim, fechar o mês',
-    onConfirm: ()=>{
-      state.fechamentos[m] = {em:new Date().toISOString(), por:AC.nome, porId:AC.user.id};
-      const ok = saveState(); render();
-      if(ok) showToast(`${lb} fechado`, 'success');
-    }
-  });
-}
-function acReabrirMes(m){
-  const lb = acMonthLabel(m);
-  showConfirm({
-    title: `Reabrir ${lb}?`, danger: true, confirmLabel: 'Reabrir',
-    message: `Reabrir ${lb} permite alterar lançamentos desse mês. Seu sócio será avisado.`,
-    onConfirm: ()=>{ delete state.fechamentos[m]; const ok = saveState(); render(); if(ok) showToast(`${lb} reaberto`); }
-  });
-}
-function acExportFech(){
-  const rows = [['Mês','Entradas','Saídas','Resultado operacional','Status']].concat(acFechData().map(d=>[d.m, d.ent.toFixed(2), d.sai.toFixed(2), d.op.toFixed(2), d.fech?('Fechado por '+d.fech.por):'Aberto']));
-  const csv = '\uFEFF'+rows.map(r=>r.join(';')).join('\n');
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));
-  a.download = 'fechamento-mensal.csv'; a.click();
-}
-
 /* ---------- avisos ---------- */
 function acUnread(){ return AC.user ? (state.avisos||[]).filter(a=>a.de!==AC.user.id && !(a.lidoPor||[]).includes(AC.user.id)) : []; }
 function acRefreshBadges(){ const n=acUnread().length; const b=document.getElementById('ac-av-n'); if(b) b.textContent = n?`(${n})`:''; }

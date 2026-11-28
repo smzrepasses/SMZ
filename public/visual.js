@@ -3,7 +3,7 @@
    Camada de apresentação (telas, menu, gráficos). Não contém regra de negócio:
    todos os números vêm das funções que já existem no sistema (patrimonio(),
    caixaSaldo(), vehicle*(), avaliarEspeculacao() etc.) e todas as ações chamam os
-   mesmos handlers de antes (openVehicleModal, handleAddContribution, acFecharMes...).
+   mesmos handlers de antes (openVehicleModal, handleAddContribution...).
    Login, Supabase, sincronização, backups, migrações e auditoria ficam no index.html.
 
    Como entra em ação: o index.html chama window.duoInstall() uma única vez, logo antes
@@ -73,26 +73,24 @@ const I={
 const ic=(n,c='')=>`<svg class="ic ${c}" viewBox="0 0 24 24" aria-hidden="true">${I[n]||''}</svg>`;
 
 /* ---------- estado só da interface ---------- */
-const S={lq:'',range:'6M',vf:'todos',vq:'',pf:'Todos',pq:'',radar:'atencao',sim:null,open:{},xopen:{},first:true,climit:200,cq:'',fechAll:false};
+const S={lq:'',range:'6M',vf:'todos',vq:'',pf:'Todos',pq:'',open:{},xopen:{},first:true,climit:200,cq:''};
 const NAV=[
  {id:'dashboard',l:'Painel',ic:'home',t:'Painel',rail:'Painel'},
  {id:'veiculos',l:'Veículos',ic:'car',t:'Veículos',rail:'Veículos'},
  {id:'caixa',l:'Financeiro',ic:'wallet',t:'Financeiro',rail:'Financeiro'},
  {id:'parceiros',l:'Parceiros',ic:'net',t:'Rede de parceiros',rail:'Parceiros'},
  {id:'clientes',l:'Clientes',ic:'users',t:'Clientes',rail:'Clientes'},
- {id:'executiva',l:'Executiva',ic:'compass',t:'Visão executiva',rail:'Visão executiva'},
- {id:'prolabore',l:'Sócios',ic:'duo',t:'Sócios',rail:'Aportes e pró-labore'}
+ {id:'executiva',l:'Executiva',ic:'compass',t:'Visão executiva',rail:'Visão executiva'}
 ];
 const hello=()=>{const h=new Date().getHours();return h<5?'Boa noite':h<12?'Bom dia':h<18?'Boa tarde':'Boa noite'};
 const firstName=()=>hasAC()?String(AC.nome||'').trim().split(/\s+/)[0]:'';
 const SUB={
  dashboard:()=>`${hello()}${firstName()?', '+firstName():''}. Esta é a situação da operação hoje.`,
- veiculos:()=>'Estoque, preparação e histórico de cada carro.',
- caixa:()=>'Entradas, saídas, metas e fechamento do mês.',
- parceiros:()=>'Quem prepara seus carros e quanto cada um rende.',
- clientes:()=>'Quem já comprou de você, para chamar de novo.',
- executiva:()=>'Para decidir: quanto comprar, o que vender e o que ajustar.',
- prolabore:()=>'Aportes e pró-labore de cada um, lado a lado.'
+ veiculos:()=>'',
+ caixa:()=>'',
+ parceiros:()=>'',
+ clientes:()=>'',
+ executiva:()=>''
 };
 
 /* ---------- dados derivados (só leitura do estado existente) ---------- */
@@ -103,8 +101,6 @@ const ativos=()=>veiculosEstoqueAtivo();
 const dias_=v=>stageOf(v)==='prep'?vehicleDiasPreparacao(v):vehicleDias(v);
 const socios=()=>{const all=state.socios||[];const ids=(typeof AC!=='undefined'&&AC.members?AC.members:[]).map(m=>m.user_id);return ids.length?all.filter(s=>ids.includes(s.id)):all};
 const sCor=i=>['var(--sa)','var(--sb)','var(--c3)','var(--c4)'][i%4];
-const socioIdx=id=>Math.max(0,socios().findIndex(s=>s.id===id));
-const socioNome=id=>{const s=socios().find(x=>x.id===id);return s?s.nome:'—'};
 function acao(d){return d>META_DIAS_ESTOQUE*2?'Reduza o preço em 3% a 5% e renove o anúncio com fotos novas.':d>META_DIAS_ESTOQUE?'Revise o preço e reforce a divulgação.':'Dentro do prazo.'}
 function classif(pct,disp){
   const MP=META_CAPITAL_PARADO_PCT;
@@ -215,54 +211,41 @@ function drawFlow(el){
     b+=`<g class="col" data-tip="${E(tp)}"><rect class="bg" x="${cx-slot/2+2}" y="${pt}" width="${slot-4}" height="${H-pt-pb}" rx="8"/><path d="${barP(cx-bw/2,Y(e),bw,y0-Y(e)-1,true)}" fill="var(--pos)" ${parc?'opacity=".6"':''}/><path d="${barP(cx-bw/2,y0+1,bw,Y(-s)-y0-1,false)}" fill="var(--neg)" ${parc?'opacity=".6"':''}/><text class="ax" x="${cx}" y="${H-5}" text-anchor="middle">${F.labels[i]}</text></g>`}
   el.innerHTML=`<svg viewBox="0 0 ${W} ${H}" height="${H}" role="img" aria-label="Entradas e saídas por mês">${g}${b}<line x1="${pl}" x2="${W-pr}" y1="${y0}" y2="${y0}" stroke="var(--line2)"/></svg>`;
 }
-function drawSocios(el){
-  const W=el.clientWidth||340,H=230,pl=46,pr=4,pt=10,pb=24;
-  const d=new Date(),yms=[];for(let i=8;i>=0;i--){const x=new Date(d.getFullYear(),d.getMonth()-i,1);yms.push(x.getFullYear()+'-'+String(x.getMonth()+1).padStart(2,'0'))}
-  const n=yms.length,SO=socios().map((s,i)=>({id:s.id,nome:s.nome,cor:sCor(i)}));
-  const known=new Set(SO.map(s=>s.id));
-  const col=yms.map(ym=>{const r={ap:{},rt:{}};
-    (state.contributions||[]).filter(c=>ymOf(c.date)===ym).forEach(c=>{const k=known.has(c.socioId)?c.socioId:'_';r.ap[k]=(r.ap[k]||0)+Number(c.valor||0)});
-    (state.withdrawals||[]).filter(w=>ymOf(w.date)===ym).forEach(w=>{const k=known.has(w.socioId)?w.socioId:'_';r.rt[k]=(r.rt[k]||0)+Number(w.valor||0)});
-    return r});
-  const SOx=SO.concat([{id:'_',nome:'Sem sócio',cor:'var(--mut)'}]);
-  const tot=o=>sum(Object.values(o));
-  const top=niceTop(Math.max(...col.map(c=>tot(c.ap)),1)),bot=-Math.max(40000,...col.map(c=>tot(c.rt)))*1.4;
-  const Y=v=>pt+(top-v)/(top-bot)*(H-pt-pb),slot=(W-pl-pr)/n,bw=Math.min(24,slot*.5),y0=Y(0);
-  let g='';[top,top/2,0].forEach(v=>{const y=Y(v);g+=`<line class="grid-l" x1="${pl}" x2="${W-pr}" y1="${y}" y2="${y}"/><text class="ax" x="0" y="${y+4}">${axLbl(v)}</text>`});
-  let b='';
-  col.forEach((c,i)=>{const cx=pl+slot*(i+.5),x=cx-bw/2,ym=yms[i],lb=MES[+ym.slice(5,7)-1]+'/'+ym.slice(2,4);
-    const rows=[];SOx.forEach(s=>{if(c.ap[s.id])rows.push([`${E(s.nome)} · aporte`,fm(c.ap[s.id])])});SOx.forEach(s=>{if(c.rt[s.id])rows.push([`${E(s.nome)} · retirada`,fm(c.rt[s.id])])});
-    const tp=rows.length?tipHtml(lb,rows):tipHtml(lb,[['Sem movimento','—']]);
-    let up='',acc=0;const ks=SOx.filter(s=>c.ap[s.id]);
-    ks.forEach((s,j)=>{const v=c.ap[s.id],last=j===ks.length-1;up+=`<path d="${barP(x,Y(acc+v),bw,Math.max(2,y0-Y(v)-(acc?2:1)),true,last?4:1)}" fill="${s.cor}"/>`;acc+=v});
-    let dn='',acd=0;SOx.filter(s=>c.rt[s.id]).forEach(s=>{const v=c.rt[s.id],yy=y0+1+(Y(-acd)-y0)+(acd?2:0);dn+=`<path d="${barP(x,yy,bw,Math.max(2,Y(-v)-y0-(acd?2:1)),false,4)}" fill="${s.cor}" opacity=".55"/>`;acd+=v});
-    b+=`<g class="col" data-tip="${E(tp)}"><rect class="bg" x="${cx-slot/2+2}" y="${pt}" width="${slot-4}" height="${H-pt-pb}" rx="8"/>${up}${dn}<text class="ax" x="${cx}" y="${H-5}" text-anchor="middle">${lb}</text></g>`});
-  el.innerHTML=`<svg viewBox="0 0 ${W} ${H}" height="${H}" role="img" aria-label="Aportes e retiradas por sócio e mês">${g}${b}<line x1="${pl}" x2="${W-pr}" y1="${y0}" y2="${y0}" stroke="var(--line2)"/></svg>`;
+const CH={hero:el=>{const s=seriesPat(),k={'3M':13,'6M':26,'1A':52}[S.range];drawLine(el,{id:'h',vals:s.vals.slice(-k),labels:s.labels.slice(-k),name:'Patrimônio',aria:'Evolução do patrimônio'})},flow:drawFlow};
+function fitTiles(){
+  const groups=$$('.tiles,.htiles,.ptiles');
+  const fit=(els,min)=>{
+    if(!els.length)return;
+    els.forEach(e=>{e.style.fontSize=''});
+    let best=Infinity;
+    els.forEach(e=>{let fs=parseFloat(getComputedStyle(e).fontSize),n=0;while(e.scrollWidth>e.clientWidth+.5&&fs>min&&n++<60){fs-=.5;e.style.fontSize=fs+'px'}best=Math.min(best,fs)});
+    els.forEach(e=>{e.style.fontSize=best+'px'});
+  };
+  groups.forEach(g=>{['.ct-v','.ct-l','.ct-f'].forEach(q=>fit($$(q,g),q==='.ct-v'?13:10))});
+  $$('.vgrid').forEach(g=>{fit($$('small',g),9.5);fit($$('b',g),10)});
+  $$('.kpis').forEach(g=>{fit($$('.k',g),10);fit($$('.v',g),13);fit($$('.d',g),10)});
+  $$('.ctile.wide').forEach(t=>fit($$('.ct-v',t),20));
 }
-function drawMatrix(el){
-  const W=el.clientWidth||340,H=290,pl=34,pr=10,pt=10,pb=30,xm=50,y0=5,y1=25,MD=META_DIAS_ESTOQUE,MM=META_MARGEM_MINIMA_PCT;
-  const X=v=>pl+Math.min(v,xm)/xm*(W-pl-pr),Y=v=>pt+(y1-Math.max(y0,Math.min(y1,v)))/(y1-y0)*(H-pt-pb);
-  const xt=X(MD),yt=Y(MM);
-  let g=`<rect x="${xt}" y="${pt}" width="${W-pr-xt}" height="${yt-pt}" fill="var(--s2)" rx="10"/><rect x="${xt}" y="${yt}" width="${W-pr-xt}" height="${H-pb-yt}" fill="color-mix(in srgb,var(--warn) 9%,transparent)" rx="10"/>`;
-  g+=`<line x1="${xt}" x2="${xt}" y1="${pt}" y2="${H-pb}" stroke="var(--line2)"/><line x1="${pl}" x2="${W-pr}" y1="${yt}" y2="${yt}" stroke="var(--line2)"/>`;
-  [0,15,30,45].forEach(v=>g+=`<text class="ax" x="${X(v)}" y="${H-12}" text-anchor="middle">${v} d</text>`);
-  [10,15,20,25].forEach(v=>g+=`<text class="ax" x="0" y="${Y(v)+4}">${v}%</text>`);
-  g+=`<text class="ax" x="${W-pr-6}" y="${pt+16}" text-anchor="end">Segurar e divulgar</text><text class="ax" x="${W-pr-6}" y="${H-pb-8}" text-anchor="end">Reprecificar</text><text class="ax" x="${pl+6}" y="${pt+16}">No caminho</text><text class="ax" x="${pl+6}" y="${H-pb-8}">Margem baixa</text>`;
-  const pts=matrixPts().map(v=>({v,x:dias_(v),y:margemProj(v),r:Math.min(18,6+vehicleTotalInvestido(v)/18000),late:stageOf(v)==='venda'&&vehicleDias(v)>MD}));
-  let b='';
-  pts.forEach(p=>{const tp=tipHtml(nomeV(p.v),[[stageOf(p.v)==='prep'?'Em preparação':'Dias à venda',p.x+' d'],['Margem projetada',fP(p.y)],['Capital',fm(vehicleTotalInvestido(p.v))]]);
-    b+=`<g data-tip="${E(tp)}"><circle cx="${X(p.x)}" cy="${Y(p.y)}" r="${p.r+8}" fill="transparent"/><circle cx="${X(p.x)}" cy="${Y(p.y)}" r="${p.r}" fill="${p.late?'var(--warn)':'var(--acc)'}" fill-opacity=".9" stroke="var(--s1)" stroke-width="2"/></g>`;
-    if(p.late)b+=`<text x="${X(p.x)-p.r-6}" y="${Y(p.y)+4}" text-anchor="end" style="font:700 11.5px var(--font);fill:var(--tx)">${E(String(p.v.modelo||p.v.marca||'').split(' ')[0])}</text>`});
-  el.innerHTML=`<svg viewBox="0 0 ${W} ${H}" height="${H}" role="img" aria-label="Dias em estoque contra margem projetada de cada veículo">${g}${b}</svg>`;
-}
-const matrixPts=()=>ativos().filter(v=>margemProj(v)!=null);
-const CH={hero:el=>{const s=seriesPat(),k={'3M':13,'6M':26,'1A':52}[S.range];drawLine(el,{id:'h',vals:s.vals.slice(-k),labels:s.labels.slice(-k),name:'Patrimônio',aria:'Evolução do patrimônio'})},flow:drawFlow,socios:drawSocios,matrix:drawMatrix};
 function drawCharts(){$$('[data-chart]').forEach(el=>CH[el.dataset.chart]&&CH[el.dataset.chart](el))}
-let rz;addEventListener('resize',()=>{clearTimeout(rz);rz=setTimeout(drawCharts,120)});
+let rz;addEventListener('resize',()=>{clearTimeout(rz);rz=setTimeout(()=>{drawCharts();fitTiles()},120)});
 const table=(h,rows)=>`<details class="tbl"><summary>${ic('chev','sm')} Ver como tabela</summary><table><thead><tr>${h.map(x=>`<th>${x}</th>`).join('')}</tr></thead><tbody>${rows.map(r=>`<tr>${r.map(x=>`<td>${x}</td>`).join('')}</tr>`).join('')}</tbody></table></details>`;
 const stack=(items,tall)=>{const it=items.filter(i=>i.v>0),t=sum(it.map(i=>i.v));return`<div class="sbar ${tall?'tall':''}" role="img" aria-label="Composição">${t>0?it.map(i=>`<i style="width:${i.v/t*100}%;background:${i.c}" data-tip="${E(tipHtml(i.n,[['Valor',fm(i.v)],['Parte',fP(i.v/t*100)]]))}"></i>`).join(''):''}</div>`};
 const legend=(items,withVal)=>`<div class="legend">${items.map(i=>`<span><i style="background:${i.c}"></i>${i.n}${withVal?` <b style="color:var(--tx)">${M(fK(i.v))}</b>`:''}</span>`).join('')}</div>`;
 const emptyBox=t=>`<div class="empty">${t}</div>`;
+
+/* ---------- cards coloridos (usados em várias telas) ---------- */
+const mv=n=>M(fK(n).replace('R$ ','<small>R$</small>&nbsp;').replace(' mi','<small>&nbsp;mi</small>'));
+const plural=(n,a,b)=>n===1?a:b;
+/* descrição de aporte/retirada sem o nome de quem lançou (só existe um dono) e sem repetir a palavra */
+const descMov=d=>String(d).replace(/^(Aporte|Retirada) \([^)]*\) — /,'$1 — ').replace(/^(Aporte|Retirada) — (\1)/i,'$2');
+const tile=(tone,icn,label,value,foot,cls='',extra='',pill='')=>`<div class="ctile ${tone} ${cls}"><div class="ct-top"><span class="ct-ic">${ic(icn)}</span>${pill?`<span class="ct-pill">${pill}</span>`:''}</div><span class="ct-l">${label}</span><b class="ct-v num">${value}</b>${extra}<span class="ct-f">${foot||'&nbsp;'}</span></div>`;
+const barViz=(pct,tg,cls='')=>`<div class="viz bar ${cls}"><i style="width:${Math.min(100,Math.max(0,pct))}%"></i>${tg!=null?`<u style="left:${Math.min(100,Math.max(0,tg))}%"></u>`:''}</div>`;
+const ringViz=f=>{const r=17,c=2*Math.PI*r,v=Math.max(0,Math.min(1,f||0));return`<svg class="viz ring" viewBox="0 0 44 44" width="54" height="54" aria-hidden="true"><circle cx="22" cy="22" r="${r}" fill="none" stroke="rgba(255,255,255,.28)" stroke-width="5"/><circle cx="22" cy="22" r="${r}" fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round" stroke-dasharray="${(c*v).toFixed(1)} ${c.toFixed(1)}" transform="rotate(-90 22 22)"/></svg>`};
+const pipsViz=(n,tg)=>`<div class="viz pips">${Array.from({length:8},(_,i)=>`<i class="${i<n?'on':''} ${i===tg?'tg':''}" style="height:${10+i*3}px"></i>`).join('')}</div>`;
+const scaleViz=(pct,tg)=>`<div class="viz scale"><b style="left:${Math.min(100,Math.max(0,pct))}%"></b>${tg!=null?`<u style="left:${tg}%"></u>`:''}</div>`;
+/* resultados de parceiro: cards pequenos coloridos que abrem embaixo */
+const resTiles=st=>`<div class="ptiles">${tile('blue','car','Veículos',st.veic,`${st.sold} ${plural(st.sold,'vendido','vendidos')}`,'sm')}${tile('green','trend','Lucro gerado',mv(st.lucro),'líquido nas vendas','sm')}${tile('violet','wallet','Comissão',st.sold&&st.gasto?mv(st.gasto/st.sold):'—','média por carro','sm')}${tile('amber','clock','Prazo médio',st.prazo!=null?st.prazo.toFixed(1).replace('.',',')+' d':'—','até vender','sm')}</div>`;
+const presBlock=(id,label,inner)=>{const k='p'+id,open=!!S.xopen[k];return`<div class="pres ${open?'open':''}" data-pres="${E(k)}"><button type="button" class="pres-btn" data-act="pres" data-id="${E(k)}" aria-expanded="${open}">${ic('chev','sm')} ${label}</button><div class="pres-body">${inner}</div></div>`};
 
 /* =====================================================================
    TELAS
@@ -279,11 +262,12 @@ V.dashboard=()=>{
   const stt=(ok,w)=>ok?['pos','Ótimo','check']:w?['warn','Atenção','alert']:['neg','Crítico','x'];
   const nod=['','Sem dados','clock'];
   const G=[
-    {n:'Estoque parado',v:fP(par,0),f:par/100,tg:MP/100,s:stt(par<=MP,par<=MP*1.5),m:`Meta: até ${MP}%`},
-    {n:'Giro do capital',v:vend.length?giro.toFixed(1).replace('.',',')+'x':'—',f:giro/8,tg:4/8,s:vend.length?stt(giro>=4,giro>=2):nod,m:'Meta: 4x ao ano'},
-    {n:'Margem média',v:marg==null?'—':fP(marg,0),f:(marg||0)/30,tg:15/30,s:marg==null?nod:stt(marg>=MM*1.5,marg>=MM),m:`Meta: acima de ${MM}%`},
-    {n:'Tempo à venda',v:Math.round(dias)+' d',f:dias/45,tg:MD/45,s:stt(dias<=MD,dias<=MD*2),m:`Meta: até ${MD} dias`}
+    {n:'Estoque parado',ic:'wallet',v:fP(par,0),viz:barViz(par,MP),s:stt(par<=MP,par<=MP*1.5),m:`Meta: até ${MP}%`},
+    {n:'Giro do capital',ic:'trend',v:vend.length?giro.toFixed(1).replace('.',',')+'x':'—',viz:pipsViz(vend.length?Math.min(8,Math.round(giro)):0,3),s:vend.length?stt(giro>=4,giro>=2):nod,m:'Meta: 4x ao ano'},
+    {n:'Margem média',ic:'spark',v:marg==null?'—':fP(marg,0),viz:scaleViz((marg||0)/30*100,MM/30*100),s:marg==null?nod:stt(marg>=MM*1.5,marg>=MM),m:`Meta: acima de ${MM}%`},
+    {n:'Tempo à venda',ic:'clock',v:Math.round(dias)+' d',ring:dias/45,s:stt(dias<=MD,dias<=MD*2),m:`Meta: até ${MD} dias`}
   ];
+  const hTile=g=>`<div class="ctile ${g.s[0]||'none'} ht"><div class="ct-top"><span class="ct-ic">${ic(g.ic)}</span><span class="ct-pill">${ic(g.s[2],'sm')} ${g.s[1]}</span></div><span class="ct-l">${g.n}</span>${g.ring!=null?`<div class="ct-row"><b class="ct-v num">${g.v}</b>${ringViz(g.ring)}</div>`:`<b class="ct-v num">${g.v}</b>${g.viz}`}<span class="ct-f">${g.m}</span></div>`;
   const ym=ymNow(),meta=Number((state.monthlyGoals||{})[ym]||0),real=lucroPorMes(ym),pctM=meta>0?real/meta*100:0;
   const now=new Date(),dm=new Date(now.getFullYear(),now.getMonth()+1,0).getDate(),faltam=dm-now.getDate(),proj=real/Math.max(1,now.getDate())*dm;
   const cm=monthlyCash(8),dCash=caixaSaldo()-cm.startOfMonth,lucs=monthlyLucro(8);
@@ -301,8 +285,10 @@ V.dashboard=()=>{
   const un=hasAC()&&typeof acUnread==='function'?acUnread():[];
   const aviso=un.length?`<div class="notice enter">${ic('alert')}<p>${un.length>1?`<b>${un.length} avisos novos</b> do seu sócio. Último: `:`<b>${E(un[0].deNome||'Seu sócio')}</b> `}${M(E(un[un.length-1].texto))}</p><button class="btn sm ghost" data-act="ciente">Estou ciente</button></div>`:'';
   const ult=vend.slice().sort((a,b)=>String(b.dataVenda||'').localeCompare(String(a.dataVenda||''))).slice(0,4);
+  const cx=caixaSaldo(),cashCard=`<section class="ctile wide ${cx<0?'rose':'green'} enter"><div class="ct-top"><span class="ct-ic">${ic('wallet')}</span><span class="ct-l">Caixa disponível</span></div><b class="ct-v num">${mv(cx)}</b><div class="cw-foot"><span class="ct-pill">${ic(dCash>=0?'up':'down','sm')} ${M(fm(Math.abs(dCash)))} no mês</span></div></section>`;
   return`${aviso}
-  <div class="grid g21">
+  ${cashCard}
+  <div class="grid g21" style="margin-top:14px">
     <section class="card hero enter">
       <div class="in heroTop"><div><div class="k">Patrimônio total</div><div class="big num" id="heroNum">${M(fm(pat))}</div>
         <div style="margin-top:8px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">${delta!=null?`<span class="pill ${delta>=0?'pos':'neg'}">${ic(delta>=0?'up':'down','sm')} ${fP(Math.abs(delta))} em 30 dias</span>`:''}<span class="k">caixa + capital em estoque</span></div></div>
@@ -316,8 +302,7 @@ V.dashboard=()=>{
     </section>
   </div>
 
-  <div class="kpis" style="margin-top:14px">
-    <div class="kpi enter"><span class="k">Caixa disponível</span><span class="v num">${M(fm(caixaSaldo()))}</span><span class="d"><b class="${dCash>=0?'pos-t':'neg-t'}">${dCash>=0?'▲':'▼'} ${M(fm(Math.abs(dCash)))}</b> no mês</span>${spark(cm.vals)}</div>
+  <div class="kpis k3" style="margin-top:14px">
     <div class="kpi enter" style="animation-delay:.04s"><span class="k">Lucro do mês</span><span class="v num">${M(fK(real))}</span><span class="d">${meta>0?fP(pctM,0)+' da meta':'meta não definida'}</span>${spark(lucs)}</div>
     <div class="kpi enter" style="animation-delay:.08s"><span class="k">Em estoque</span><span class="v num">${act.length} veículo${act.length===1?'':'s'}</span><span class="d">${st('prep').length} em preparação</span><div class="meter" style="margin-top:12px"><i style="width:${Math.min(100,par)}%;background:var(--c2)"></i></div></div>
     <div class="kpi enter" style="animation-delay:.12s"><span class="k">Lucro acumulado</span><span class="v num">${M(fK(lucroAcumulado()))}</span><span class="d">desde o início</span></div>
@@ -325,8 +310,8 @@ V.dashboard=()=>{
 
   <div class="grid g21" style="margin-top:14px">
     <section class="card enter">
-      <div class="chead"><div><h2>Saúde da operação</h2><p class="sub">${G.filter(g=>g.s[0]==='pos').length} de 4 indicadores na meta. A marca branca no arco é a meta.</p></div></div>
-      <div class="gauges">${G.map(g=>`<div class="gz">${gauge({f:g.f,target:g.tg,tone:g.s[0],center:g.v})}<div class="gl">${g.n}</div><div class="gm">${g.m}</div><span class="pill ${g.s[0]}">${ic(g.s[2],'sm')} ${g.s[1]}</span></div>`).join('')}</div>
+      <div class="chead"><div><h2>Saúde da operação</h2><p class="sub">${G.filter(g=>g.s[0]==='pos').length} de 4 indicadores na meta.</p></div></div>
+      <div class="htiles">${G.map(hTile).join('')}</div>
     </section>
     <section class="card enter" style="animation-delay:.05s">
       <div class="chead"><div><h2>Meta de lucro de ${MESL[now.getMonth()]}</h2><p class="sub">${faltam>0?`Faltam ${faltam} dia${faltam>1?'s':''} para fechar o mês`:'Último dia do mês'}</p></div></div>
@@ -341,11 +326,11 @@ V.dashboard=()=>{
 
   <div class="grid g2" style="margin-top:14px">
     <section class="card enter">
-      <div class="chead"><div><h2>Pede atenção</h2><p class="sub">Veículos acima de ${MD} dias e pontos do caixa</p></div></div>
+      <div class="chead"><div><h2>Pede atenção</h2></div></div>
       <div class="rows">${al.map(a=>`<div class="row"><div class="badge ${a.t}">${ic(a.ic)}</div><div class="grow"><div class="t">${a.h}</div><div class="s">${a.s}</div></div>${a.r?`<div class="r"><b class="num ${a.t}-t">${a.r}</b></div>`:''}</div>`).join('')}</div>
     </section>
     <section class="card enter" style="animation-delay:.05s">
-      <div class="chead"><div><h2>Últimas vendas</h2><p class="sub">Lucro líquido e margem</p></div><button class="btn sm ghost" data-act="vendidos">Ver todas</button></div>
+      <div class="chead"><div><h2>Últimas vendas</h2></div><button class="btn sm ghost" data-act="vendidos">Ver todas</button></div>
       <div class="rows">${ult.length?ult.map(v=>{const l=vehicleLucroLiquido(v)||0,mg=vehicleMargem(v);return`<div class="row"><div class="badge ${l>=0?'pos':'neg'}">${ic('tag')}</div><div class="grow"><div class="t">${E(nomeV(v))}</div><div class="s">${dBR(v.dataVenda)} · ${vehicleDias(v)} dias${mg!=null?' · margem '+fP(mg):''}</div></div><div class="r"><b class="num ${l>=0?'pos-t':'neg-t'}">${l>=0?'+':'−'} ${M(fK(Math.abs(l)))}</b></div></div>`}).join(''):emptyBox('Nenhuma venda registrada ainda.')}</div>
     </section>
   </div>`;
@@ -429,19 +414,21 @@ function vcard(v){
 }
 V.veiculos=()=>{
   const act=ativos(),totEst=sum(act.map(vehicleCapital)),proj=sum(act.map(v=>vehicleLucroProjetado(v)||0)),dm=tempoMedioCapitalImobilizado();
+  const nPrep=act.filter(v=>stageOf(v)==='prep').length,nVenda=act.filter(v=>stageOf(v)==='venda').length;
   const cnt=k=>k==='todos'?state.vehicles.filter(v=>stageOf(v)!=='desist').length:state.vehicles.filter(v=>stageOf(v)===k).length;
   const fl=[['todos','Todos'],['prep','Em preparação'],['venda','À venda'],['esp','Especulação'],['vendido','Vendidos']];
   if(cnt('desist'))fl.push(['desist','Não concluídos']);
   let list=vehFilteredNew();
   if(S.vf==='vendido')list=list.sort((a,b)=>String(b.dataVenda||'').localeCompare(String(a.dataVenda||'')));
   return`
-  <div class="kpis" style="grid-template-columns:repeat(3,1fr);margin-bottom:14px">
-    <div class="kpi"><span class="k">Capital</span><span class="v num" style="font-size:17px">${M(fK(totEst))}</span></div>
-    <div class="kpi"><span class="k">Lucro previsto</span><span class="v num" style="font-size:17px">${M(fK(proj))}</span></div>
-    <div class="kpi"><span class="k">Dias médios</span><span class="v num" style="font-size:17px">${Math.round(dm)} d</span></div>
+  <div class="tiles" style="margin-bottom:14px">
+    ${tile('blue','wallet','Capital em estoque',mv(totEst),'valor investido')}
+    ${tile('green','trend','Lucro previsto',mv(proj),'em estoque')}
+    ${tile('amber','clock','Dias médios',Math.round(dm)+' d','meta: '+META_DIAS_ESTOQUE+' dias')}
+    ${tile('violet','car','Em estoque',act.length+' <small>'+plural(act.length,'carro','carros')+'</small>',nVenda+' à venda')}
   </div>
   <label class="search">${ic('search','sm')}<input id="vq" type="search" placeholder="Buscar por marca, modelo, placa ou ano" value="${E(S.vq)}" aria-label="Buscar veículo"></label>
-  <div class="chips" role="group" aria-label="Filtrar por situação">${fl.map(([k,l])=>`<button class="chip ${S.vf===k?'on':''}" data-act="vf" data-k="${k}">${l}<i>${cnt(k)}</i></button>`).join('')}</div>
+  <div class="chips wrap" role="group" aria-label="Filtrar por situação">${fl.map(([k,l])=>`<button class="chip ${S.vf===k?'on':''}" data-act="vf" data-k="${k}">${l}<i>${cnt(k)}</i></button>`).join('')}</div>
   <div class="vlist" style="display:grid;gap:12px;margin-top:12px">${list.length?list.map(vcard).join(''):emptyBox(state.vehicles.length?'Nenhum veículo encontrado.':'Nenhum veículo cadastrado. Toque em "Novo veículo" para começar.')}</div>
   <div class="vmore"><button class="btn ghost sm" data-act="vcsv">${ic('file','sm')} Exportar CSV</button></div>`;
 };
@@ -456,38 +443,48 @@ V.caixa=()=>{
   if(q)rows=rows.filter(r=>((r.t.desc||'')+' '+(r.t.categoria||'')).toLowerCase().includes(q));
   const vis=rows.slice(0,S.climit),resto=rows.length-vis.length,groups={},order=[];
   vis.forEach(r=>{const d=r.t.date||'';if(!groups[d]){groups[d]=[];order.push(d)}groups[d].push(r)});
-  const fech=acFechData(),fv=S.fechAll?fech:fech.slice(0,4);
   // metas
   const goals=state.monthlyGoals||{},mset=new Set([...Object.keys(goals).filter(k=>Number(goals[k])>0),ymNow(),...veiculosVendidos().map(v=>ymOf(v.dataVenda)).filter(Boolean)]);
   const mm=Array.from(mset).sort().reverse().slice(0,8);
+  const cur=ymNow(),nowD=new Date(),mC=Number(goals[cur]||0),rC=lucroPorMes(cur),pC=mC>0?rC/mC*100:0,bateu=mC>0&&rC>=mC;
+  const dmes=new Date(nowD.getFullYear(),nowD.getMonth()+1,0).getDate(),dRest=dmes-nowD.getDate(),projC=rC/Math.max(1,nowD.getDate())*dmes,falta=Math.max(0,mC-rC),noRitmo=mC>0&&projC>=mC;
+  const metaA=tile('blue','trend','Lucro de '+MESL[nowD.getMonth()],mv(rC),mC>0?'Meta: '+M(fK(mC)):'Meta não definida','',barViz(pC),mC>0?fP(pC,0)+' da meta':'Sem meta');
+  const metaB=mC<=0?tile('violet','spark','Meta do mês','—','Meta não definida','','','Sem meta')
+    :bateu?tile('green','check','Acima da meta',mv(rC-mC),'projeção '+M(fK(projC)),'','','Meta batida')
+    :tile(noRitmo?'green':'amber',noRitmo?'trend':'clock','Falta para a meta',mv(falta),'projeção '+M(fK(projC)),'','',noRitmo?'No ritmo':'Abaixo');
+  const ant=mm.filter(ym=>ym!==cur).slice(0,5);
+  const totAp=totalAportado(),totRt=totalRetirado();
+  const movs=[...(state.contributions||[]).map((c,i)=>({k:'ap',o:c,i})),...(state.withdrawals||[]).map((w,i)=>({k:'rt',o:w,i}))].sort((a,b)=>String(b.o.date||'').localeCompare(String(a.o.date||''))||b.i-a.i);
   return`
   <div class="kpis" style="grid-template-columns:1fr 1fr">
     <div class="kpi" style="grid-column:span 2"><span class="k">Saldo em caixa</span><span class="v num big" style="font-size:32px">${M(fm(caixaSaldo()))}</span><span class="d">${totalCustosPrevistos()>0?M(fm(totalCustosPrevistos()))+' em custos previstos já reservados':'sem custos previstos reservados'}</span></div>
     <div class="kpi"><span class="k">Entradas em ${nm}</span><span class="v num pos-t">${M(fm(ent))}</span></div>
     <div class="kpi"><span class="k">Saídas em ${nm}</span><span class="v num neg-t">${M(fm(sai))}</span></div>
   </div>
-  <div class="grid g21" style="margin-top:14px">
-  <section class="card">
-    <div class="chead"><div><h2>Entradas e saídas</h2><p class="sub">Últimos ${F.labels.length} meses. Toque na coluna para ver os valores.</p></div><button class="btn sm" data-act="lanc">${ic('plus','sm')} Lançar</button></div>
+  <section class="card" style="margin-top:14px">
+    <div class="chead"><div><h2>Entradas e saídas</h2></div><button class="btn sm" data-act="lanc">${ic('plus','sm')} Lançar</button></div>
     <div class="ch" data-chart="flow"></div>
     <div class="legend"><span><i style="background:var(--pos)"></i>Entradas</span><span><i style="background:var(--neg)"></i>Saídas</span><span style="color:var(--mut)">${F.yms.includes(F.now)?cap1(nm)+' ainda em andamento':''}</span></div>
     ${table(['Mês','Entradas','Saídas','Resultado'],F.labels.map((l,k)=>[l,M(fm(F.ent[k])),M(fm(F.sai[k])),M(fm(F.ent[k]-F.sai[k]))]))}
   </section>
-  <section class="card">
-    <div class="chead"><div><h2>Fechamento mensal</h2><p class="sub">Mês fechado não aceita lançamento</p></div><button class="btn sm ghost" data-act="fechcsv">CSV</button></div>
-    <div class="rows">${fv.length?fv.map(d=>{const f=d.fech,ended=acMonthEnded(d.m);return`<div class="row"><div class="badge ${f?'':'acc'}">${ic(f?'lock':'clock')}</div><div class="grow"><div class="t">${cap1(acMonthLabel(d.m))}</div><div class="s">${f?`Fechado por ${E(f.por||'')} em ${new Date(f.em).toLocaleDateString('pt-BR')}`:(ended?'Pronto para fechar':'Fecha após o fim do mês')}</div></div>${f?`<button class="btn sm ghost" data-act="reabrir" data-m="${d.m}">Reabrir</button>`:(ended?`<button class="btn sm" data-act="fechar" data-m="${d.m}">Fechar mês</button>`:`<span class="pill acc">Aberto</span>`)}</div>`}).join(''):emptyBox('Sem movimentações ainda.')}</div>
-    ${fech.length>4?`<div class="vmore"><button class="btn sm ghost" data-act="fechall">${S.fechAll?'Mostrar menos':'Ver todos os meses'}</button></div>`:''}
-  </section></div>
   <section class="card" style="margin-top:14px">
-    <div class="chead"><div><h2>Movimentações</h2><p class="sub">Agrupadas por dia, com o saldo ao final de cada lançamento</p></div><button class="btn sm ghost" data-act="csv">Exportar CSV</button></div>
+    <div class="chead"><div><h2>Movimentações</h2></div><button class="btn sm ghost" data-act="csv">Exportar CSV</button></div>
     <label class="search">${ic('search','sm')}<input id="cq" type="search" placeholder="Buscar por descrição ou categoria" value="${E(S.cq)}" aria-label="Buscar movimentação"></label>
-    ${order.length?order.map(d=>`<div class="k" style="margin:14px 0 6px;font-weight:700">${dLong(d)}</div><div class="rows">${groups[d].map(r=>{const t=r.t,linked=!!(t.vehicleId||t.contributionId||t.withdrawalId),en=t.tipo==='entrada';return`<div class="row"><div class="badge ${en?'pos':'neg'}">${ic(en?'up':'down')}</div><div class="grow"><div class="t">${E(t.desc||t.categoria||(en?'Entrada':'Saída'))}</div><div class="s">Saldo ${M(fm(r.s))}</div></div><div class="r"><b class="num ${en?'pos-t':'neg-t'}">${en?'+':'−'} ${M(fm(Number(t.valor||0)))}</b></div>${linked?'':`<button class="ico-btn dng" data-act="txdel" data-id="${E(t.id)}" aria-label="Excluir movimentação" title="Excluir">${ic('trash','sm')}</button>`}</div>`}).join('')}</div>`).join(''):emptyBox(state.transactions.length?'Nenhuma movimentação encontrada para essa busca.':'Nenhuma movimentação registrada.')}
+    ${order.length?order.map(d=>`<div class="k" style="margin:14px 0 6px;font-weight:700">${dLong(d)}</div><div class="rows">${groups[d].map(r=>{const t=r.t,linked=!!(t.vehicleId||t.contributionId||t.withdrawalId),en=t.tipo==='entrada';return`<div class="row"><div class="badge ${en?'pos':'neg'}">${ic(en?'up':'down')}</div><div class="grow"><div class="t">${E(descMov(t.desc||t.categoria||(en?'Entrada':'Saída')))}</div><div class="s">Saldo ${M(fm(r.s))}</div></div><div class="r"><b class="num ${en?'pos-t':'neg-t'}">${en?'+':'−'} ${M(fm(Number(t.valor||0)))}</b></div>${linked?'':`<button class="ico-btn dng" data-act="txdel" data-id="${E(t.id)}" aria-label="Excluir movimentação" title="Excluir">${ic('trash','sm')}</button>`}</div>`}).join('')}</div>`).join(''):emptyBox(state.transactions.length?'Nenhuma movimentação encontrada para essa busca.':'Nenhuma movimentação registrada.')}
     ${resto>0?`<div class="vmore"><button class="btn sm ghost" data-act="more">Ver mais (${resto} restantes)</button></div>`:''}
   </section>
   <section class="card" style="margin-top:14px">
-    <div class="chead"><div><h2>Metas de lucro</h2><p class="sub">Realizado contra a meta de cada mês</p></div><button class="btn sm" data-act="meta">${ic('plus','sm')} Definir meta</button></div>
-    <div class="rows">${mm.map(ym=>{const meta=Number(goals[ym]||0),real=lucroPorMes(ym),p=meta>0?real/meta*100:null,ok=p!=null&&p>=100,cur=ym===ymNow(),[yy,mo]=ym.split('-');const tone=p==null?'':ok?'pos':cur?'acc':'warn';
-      return`<div class="row"><div class="grow"><div style="display:flex;justify-content:space-between;gap:8px"><span class="t">${cap1(MESL[+mo-1])}/${yy}${cur?' · em andamento':''}</span><b class="num">${M(fK(real))} ${meta>0?`<span style="color:var(--mut);font-weight:600">de ${M(fK(meta))}</span>`:''}</b></div><div class="meter"><i style="width:${p==null?0:Math.min(100,Math.max(0,p))}%;background:var(--${ok?'pos':cur?'acc':'warn'})"></i></div></div><span class="pill ${tone}" style="min-width:58px;justify-content:center">${p!=null?fP(p,0):'Sem meta'}</span></div>`}).join('')}</div>
+    <div class="chead"><div><h2>Metas de lucro</h2></div><button class="btn sm" data-act="meta">${ic('plus','sm')} Definir meta</button></div>
+    <div class="tiles">${metaA}${metaB}</div>
+    ${ant.length?`<div class="k" style="margin:18px 0 8px;font-weight:700">Meses anteriores</div><div class="rows">${ant.map(ym=>{const meta=Number(goals[ym]||0),real=lucroPorMes(ym),p=meta>0?real/meta*100:null,ok=p!=null&&p>=100,[yy,mo]=ym.split('-'),tone=p==null?'':ok?'pos':'warn';
+      return`<div class="mrow"><div class="mr-h"><span class="t">${cap1(MESL[+mo-1])}/${yy}</span><span class="pill ${tone}">${p!=null?fP(p,0):'Sem meta'}</span></div><div class="meter"><i style="width:${p==null?0:Math.min(100,Math.max(0,p))}%;background:var(--${ok?'pos':'warn'})"></i></div><div class="mr-v"><div><small>Realizado</small><b class="num ${real>=0?'':'neg-t'}">${M(fK(real))}</b></div><div><small>Meta</small><b class="num">${meta>0?M(fK(meta)):'—'}</b></div></div></div>`}).join('')}</div>`:''}
+  </section>
+  <section class="card" style="margin-top:14px">
+    <div class="chead"><div><h2>Aportes e retiradas</h2></div></div>
+    <div class="mov-btns"><button class="btn pos" data-act="mov" data-t="aporte">${ic('plus','sm')} Aporte</button><button class="btn neg" data-act="mov" data-t="retirada">${ic('minus','sm')} Retirada</button></div>
+    <div class="tiles">${tile('green','up','Total aportado',mv(totAp),`${(state.contributions||[]).length} ${plural((state.contributions||[]).length,'aporte','aportes')}`)}${tile('rose','down','Total retirado',mv(totRt),`${(state.withdrawals||[]).length} ${plural((state.withdrawals||[]).length,'retirada','retiradas')}`)}</div>
+    <div class="k" style="margin:18px 0 8px;font-weight:700">Histórico</div>
+    <div class="rows">${movs.length?movs.map(m=>{const o=m.o,ap=m.k==='ap',ini=ap&&o.inicial;return`<div class="row hrow"><div class="badge ${ap?'pos':'neg'}">${ic(ap?'up':'down')}</div><div class="grow"><div class="t">${E((ap?o.origem:o.motivo)||(ap?'Aporte':'Retirada'))}${ini?' <span class="pill acc" style="height:20px;font-size:11px">inicial</span>':''}</div><div class="s">${ap?'Aporte':'Retirada'} · ${dBR(o.date)}</div></div><div class="r"><b class="num ${ap?'pos-t':'neg-t'}">${ap?'+':'−'} ${M(fm(Number(o.valor||0)))}</b></div><button class="ico-btn" data-act="medit" data-k="${m.k}" data-id="${E(o.id)}" aria-label="Editar" title="Editar">${ic('edit','sm')}</button><button class="ico-btn dng" data-act="mdel" data-k="${m.k}" data-id="${E(o.id)}" aria-label="Excluir" title="Excluir">${ic('trash','sm')}</button></div>`}).join(''):emptyBox('Nenhum aporte ou retirada registrado.')}</div>
   </section>`;
 };
 
@@ -528,10 +525,12 @@ function ccard(c){
 V.clientes=()=>{
   const all=clientesList(),q=_norm((S.lq||'').trim());
   const list=all.filter(c=>!q||_norm(c.nome+' '+c.tel).includes(q));
-  return `<div class="kpis" style="grid-template-columns:repeat(3,1fr);margin-bottom:14px">
-    <div class="kpi"><span class="k">Clientes</span><span class="v num" style="font-size:17px">${all.length}</span></div>
-    <div class="kpi"><span class="k">Compras feitas</span><span class="v num" style="font-size:17px">${sum(all.map(c=>c.compras.length))}</span></div>
-    <div class="kpi"><span class="k">Total vendido</span><span class="v num" style="font-size:17px">${M(fK(sum(all.map(c=>c.total))))}</span></div>
+  const nCompras=sum(all.map(c=>c.compras.length)),tot=sum(all.map(c=>c.total)),rec=all.filter(c=>c.compras.length>1).length;
+  return `<div class="tiles" style="margin-bottom:14px">
+    ${tile('blue','users','Clientes',all.length,'já compraram')}
+    ${tile('green','tag','Compras feitas',nCompras,plural(nCompras,'veículo vendido','veículos vendidos'))}
+    ${tile('violet','wallet','Total vendido',mv(tot),nCompras?'valor das vendas':'valor das vendas')}
+    ${tile('amber','spark','Voltaram a comprar',rec,all.length?fP(rec/all.length*100,0)+' dos clientes':'compraram 2 vezes ou mais')}
   </div>
   <section class="card" style="margin-bottom:14px"><div class="chead"><div><h2>Mensagem padrão</h2><p class="sub">Usada no botão do WhatsApp. <b>{nome}</b> vira o primeiro nome do cliente e <b>{ultimo}</b> o último carro que ele levou. Salva sozinha.</p></div></div>
     <textarea id="msgtpl" rows="3" aria-label="Mensagem padrão">${E(msgTpl())}</textarea></section>
@@ -546,54 +545,34 @@ V.parceiros=()=>{
   const rank=stats.filter(x=>x.st.sold>0).sort((a,b)=>b.st.lucro-a.st.lucro),mx=rank.length?Math.max(1,rank[0].st.lucro):1;
   const atend=state.vehicles.filter(v=>v.status==='Garagem Parceira');
   return`
-  <div class="kpis" style="grid-template-columns:repeat(3,1fr);margin-bottom:14px">
-    <div class="kpi"><span class="k">Parceiros</span><span class="v num" style="font-size:19px">${P.length}</span></div>
-    <div class="kpi"><span class="k">Comissões pagas</span><span class="v num" style="font-size:19px">${M(fK(sum(stats.map(x=>x.st.gasto))))}</span></div>
-    <div class="kpi"><span class="k">Em atendimento</span><span class="v num" style="font-size:19px">${atend.length} carro${atend.length===1?'':'s'}</span></div>
+  <div class="tiles" style="margin-bottom:14px">
+    ${tile('blue','net','Parceiros',P.length,getPartnerTypesUsed().length+' '+plural(getPartnerTypesUsed().length,'tipo de serviço','tipos de serviço'))}
+    ${tile('amber','wallet','Comissões pagas',mv(sum(stats.map(x=>x.st.gasto))),'nas vendas')}
+    ${tile('violet','car','Em atendimento',atend.length+' <small>'+plural(atend.length,'carro','carros')+'</small>','nas garagens')}
+    ${tile('green','trend','Lucro gerado',mv(sum(stats.map(x=>x.st.lucro))),'líquido nas vendas')}
   </div>
   <div class="grid g2">
-    <section class="card"><div class="chead"><div><h2>Com quem os carros estão agora</h2><p class="sub">Tempo de cada veículo na garagem parceira</p></div></div>
+    <section class="card"><div class="chead"><div><h2>Com quem os carros estão agora</h2></div></div>
       <div class="rows">${atend.length?atend.map(v=>`<div class="row"><div class="badge acc">${ic('car')}</div><div class="grow"><div class="t">${E(nomeV(v))}</div><div class="s">${E(vehicleParceiroNome(v)||'Garagem parceira')}</div></div><div class="r"><b class="num">${vehicleDias(v)} d</b><div class="s">de ${META_DIAS_ESTOQUE} d</div></div></div>`).join(''):emptyBox('Nenhum carro em garagem parceira agora.')}</div>
     </section>
-    <section class="card"><div class="chead"><div><h2>Quem mais gera lucro</h2><p class="sub">Lucro dos veículos vendidos por cada parceiro</p></div></div>
-      ${rank.length?rank.map(({p,st})=>`<div class="hbar" data-tip="${E(tipHtml(E(p.nome),[['Lucro',fm(st.lucro)],['Veículos',st.veic],['Prazo médio',st.prazo!=null?st.prazo.toFixed(1).replace('.',',')+' d':'—']]))}"><div class="nm">${E(p.nome)}</div><div class="tr"><i style="width:${Math.max(0,st.lucro)/mx*56}%"></i><b style="left:calc(${Math.max(0,st.lucro)/mx*56}% )">${M(fK(st.lucro))}</b></div></div>`).join('')+table(['Parceiro','Veículos','Lucro'],rank.map(({p,st})=>[E(p.nome),st.veic,M(fK(st.lucro))])):emptyBox('Ainda não há vendas ligadas a parceiros.')}
+    <section class="card"><div class="chead"><div><h2>Quem mais gera lucro</h2></div></div>
+      ${rank.length?rank.map(({p,st})=>`<div class="hbar" data-tip="${E(tipHtml(E(p.nome),[['Lucro',fm(st.lucro)],['Veículos',st.veic],['Prazo médio',st.prazo!=null?st.prazo.toFixed(1).replace('.',',')+' d':'—']]))}"><div class="nm">${E(p.nome)}</div><div class="tr"><i style="width:${Math.max(0,st.lucro)/mx*42}%"></i><b style="left:calc(${Math.max(0,st.lucro)/mx*42}% )">${M(fK(st.lucro))}</b></div></div>`).join('')+presBlock('rank','Resultados',rank.map(({p,st})=>`<div class="pr-name">${E(p.nome)}</div>${resTiles(st)}`).join('')):emptyBox('Ainda não há vendas ligadas a parceiros.')}
     </section>
   </div>
   <div class="ptitle" style="margin:22px 0 12px"><div><h1 style="font-size:21px">Todos os parceiros</h1></div><button class="btn sm" data-act="novoP">${ic('plus','sm')} Novo parceiro</button></div>
   <label class="search">${ic('search','sm')}<input id="pq" type="search" placeholder="Buscar por nome ou cidade" value="${E(S.pq)}" aria-label="Buscar parceiro"></label>
   <div class="chips">${tipos.map(t=>`<button class="chip ${S.pf===t?'on':''}" data-act="pf" data-k="${E(t)}">${E(t)}</button>`).join('')}</div>
   <div class="plist" style="display:grid;gap:12px;margin-top:12px">${list.length?list.map(p=>{const st=partnerStats(p),w=wa(p.telefone),d=digits(p.telefone);return`<article class="pcard enter"><div style="display:flex;gap:12px;align-items:center"><div class="badge acc">${ic(PICO[(p.tipo||'').trim()]||'net')}</div><div style="flex:1;min-width:0"><div style="font-weight:800;font-size:16px">${E(p.nome)}</div><div class="k">${E(p.tipo||'')}${p.responsavel?' · '+E(p.responsavel):''}</div></div></div>
-    <div class="pstats"><div><small>Veículos</small><b class="num">${st.veic}</b></div><div><small>Comissão média</small><b class="num">${st.sold&&st.gasto?M(fK(st.gasto/st.sold)):'—'}</b></div><div><small>Prazo médio</small><b class="num">${st.prazo!=null?st.prazo.toFixed(1).replace('.',',')+' d':'—'}</b></div></div>
-    <div class="k" style="display:flex;gap:7px;align-items:center;margin-bottom:12px">${ic('pin','sm')} ${E([p.endereco,p.cidade].filter(Boolean).join(' · ')||'Endereço não informado')}</div>
+    <div class="k" style="display:flex;gap:7px;align-items:center;margin:12px 0">${ic('pin','sm')} ${E([p.endereco,p.cidade].filter(Boolean).join(' · ')||'Endereço não informado')}</div>
+    ${presBlock('c'+p.id,'Ver resultados',resTiles(st))}
     <div class="pact">${d?`<a class="btn ghost sm" href="tel:+${w}" style="text-decoration:none">${ic('phone','sm')} Ligar</a><a class="btn ghost sm" href="https://wa.me/${w}" target="_blank" rel="noopener" style="text-decoration:none">${ic('chat','sm')} WhatsApp</a>`:''}<button class="btn ghost sm" data-act="pedit" data-id="${E(p.id)}">Editar</button><button class="btn dngb sm" data-act="pdel" data-id="${E(p.id)}">Excluir</button></div></article>`}).join(''):emptyBox(P.length?'Nenhum parceiro encontrado com esse filtro ou busca.':'Nenhum parceiro cadastrado ainda. Toque em "Novo parceiro" para começar.')}</div>`;
 };
 
 /* ---------- VISÃO EXECUTIVA ---------- */
-function simHtml(){
-  const P=S.sim,pat=patrimonio(),novoParado=pat>0?(valorEstoqueLivro()+P)/pat*100:0,sobra=capitalLivreParaCompra()-P,cl=classif(novoParado,sobra);
-  const since=new Date();since.setDate(since.getDate()-90);const iso=isoOf(since);
-  const saida90=sum((state.transactions||[]).filter(t=>t.tipo==='saida'&&t.date>=iso).map(t=>Number(t.valor||0)));
-  const dias=saida90>0?Math.max(0,Math.round((caixaSaldo()-P)/(saida90/90))):null;
-  return`<div style="display:flex;align-items:baseline;gap:8px"><div class="big num">${M(fm(P))}</div><span class="k">de compra</span></div>
-  <div class="sim"><div><small>Livre depois</small><b class="num ${sobra<0?'neg-t':''}">${M(fm(sobra))}</b></div><div><small>Estoque parado</small><b class="num">${fP(novoParado)}</b></div><div><small>Caixa depois</small><b class="num">${M(fK(caixaSaldo()-P))}</b></div><div><small>Cobre de saídas</small><b class="num">${dias!=null?dias+' dias':'—'}</b></div></div>
-  <div class="verdict ${cl.t}">${ic(cl.t==='pos'?'check':cl.t==='warn'?'alert':'x')}<div><b>${cl.l}</b>${cl.t==='pos'?'Pode comprar sem apertar o caixa.':cl.t==='warn'?'Dá para comprar, mas escolha um carro de giro rápido.':'Venda algo antes de comprar.'}</div></div>`;
-}
 V.executiva=()=>{
   const pct=percentualPatrimonioParado(),disp=capitalLivreParaCompra(),cl=classif(pct,disp);
   const seg=[{n:'Custos previstos',v:capitalComprometido(),c:'var(--c2)'},{n:'Reserva operacional',v:reservaOperacional(),c:'var(--c4)'},{n:'Livre para comprar',v:disp,c:'var(--c3)'}];
-  const MD=META_DIAS_ESTOQUE,act=ativos(),vend=veiculosVendidos();
-  const vn=v=>E(nomeV(v));
-  const radar={
-    atencao:{l:'Pedem ação',list:insightsVeiculosParados(MD).slice(0,5).map(v=>[vn(v),`${vehicleDias(v)} dias à venda`,sugestaoAcaoVeiculo(v),vehicleDias(v)>MD*2?'neg':'warn'])},
-    tempo:{l:'Mais tempo parado',list:act.filter(v=>!vehicleEmPreparacao(v)).sort((a,b)=>vehicleDias(b)-vehicleDias(a)).slice(0,4).map(v=>[vn(v),`${vehicleDias(v)} dias`,sugestaoAcaoVeiculo(v),vehicleDias(v)>MD*2?'neg':vehicleDias(v)>MD?'warn':'pos'])},
-    lpd:{l:'Lucro por dia',list:[...act,...vend].map(v=>({v,x:vehicleLucroPorDia(v)})).filter(x=>x.x!=null).sort((a,b)=>b.x-a.x).slice(0,4).map(({v,x})=>[vn(v),fm(x)+' por dia',v.status==='Vendido'?'Realizado':'Projetado',x>=0?'pos':'neg'])},
-    roi:{l:'Maior ROI',list:vend.map(v=>({v,x:vehicleROI(v)})).filter(x=>x.x!=null).sort((a,b)=>b.x-a.x).slice(0,4).map(({v,x})=>[vn(v),'ROI '+fP(x),`Lucro de ${fm(vehicleLucroLiquido(v)||0)}`,x>=0?'pos':'neg'])}
-  };
-  const R=radar[S.radar];
-  const esp=veiculosEspeculacao().map(v=>({v,a:avaliarEspeculacao(v)})).sort((x,y)=>(y.a.roiPct==null?-1e9:y.a.roiPct)-(x.a.roiPct==null?-1e9:x.a.roiPct));
-  let espAll='';
-  if(esp.length>1){const totRest=sum(esp.map(x=>x.a.restante)),apos=caixaSaldo()-totRest,pat=patrimonio(),parado=pat>0?(valorEstoqueLivro()+totRest)/pat*100:null;
-    espAll=`<div class="verdict ${apos<0?'neg':(parado!=null&&parado>META_CAPITAL_PARADO_PCT)||totRest>capitalLivreParaCompra()?'warn':'pos'}" style="margin-top:10px">${ic(apos<0?'x':'alert')}<div><b>Se as ${esp.length} especulações fossem concretizadas</b>${apos<0?`Faltariam ${M(fm(-apos))} no caixa.`:`Caixa após comprar tudo: ${M(fm(apos))}.`}${parado!=null?` Capital parado iria a ${fP(parado)} (meta ${META_CAPITAL_PARADO_PCT}%).`:''}</div></div>`}
+  const MD=META_DIAS_ESTOQUE,vend=veiculosVendidos();
   const bm=insightMelhorMarcaROI(),bp=insightMelhorParceiro(),baixa=insightsBaixaMargem(META_MARGEM_MINIMA_PCT),roi=roiMedio(),giro=giroAnualCapital(),cp=insightCapitalParadoMeta(),parados=insightsVeiculosParados(MD);
   const opp=[];
   if(bm)opp.push(`<div class="row"><div class="badge pos">${ic('trend')}</div><div class="grow"><div class="t">${E(bm.marca)} é a marca com maior retorno</div><div class="s">ROI médio de ${fP(bm.roiMedio)} em ${bm.qtd} venda${bm.qtd>1?'s':''}</div></div></div>`);
@@ -604,12 +583,9 @@ V.executiva=()=>{
   if(vend.length&&giro<3)opp.push(`<div class="row"><div class="badge warn">${ic('spark')}</div><div class="grow"><div class="t">Giro do capital baixo</div><div class="s">Priorize veículos de maior liquidez para acelerar o ciclo de vendas.</div></div></div>`);
   if(parados.length)opp.push(`<div class="row"><div class="badge warn">${ic('clock')}</div><div class="grow"><div class="t">${parados.length} veículo${parados.length>1?'s':''} há mais de ${MD} dias à venda</div><div class="s">Reforce a divulgação ou reduza o preço.</div></div></div>`);
   if(!opp.length)opp.push(`<div class="row"><div class="badge pos">${ic('check')}</div><div class="grow"><div class="t">A operação está em bom ritmo</div><div class="s">Continue reinvestindo o lucro líquido para acelerar o crescimento do patrimônio.</div></div></div>`);
-  const maxSim=Math.max(100000,Math.round(Math.max(0,disp)/10000)*10000);
-  if(S.sim==null)S.sim=Math.min(maxSim,Math.max(20000,Math.round(Math.min(150000,disp)/5000)*5000));
-  S.sim=Math.min(maxSim,Math.max(20000,S.sim));
   return`
   <section class="card hero2 enter">
-    <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start"><div><div class="k">Disponível para nova compra</div><div class="big num" style="margin-top:4px">${M(fm(Math.max(0,disp)))}</div></div><span class="pill ${cl.t}">${ic(cl.t==='pos'?'check':cl.t==='warn'?'alert':'x','sm')} ${cl.l}</span></div>
+    <div class="hd"><div><div class="k">Disponível para nova compra</div><div class="big num">${M(fm(Math.max(0,disp)))}</div></div><span class="pill ${cl.t}">${ic(cl.t==='pos'?'check':cl.t==='warn'?'alert':'x','sm')} ${cl.l}</span></div>
     <p class="sub" style="margin:10px 0 14px;font-size:13.5px">${cl.d}</p>
     ${stack(seg,true)}
     <div class="legend">${seg.map(s=>`<span><i style="background:${s.c}"></i>${s.n} <b style="color:var(--tx)">${M(fK(s.v))}</b></span>`).join('')}</div>
@@ -617,66 +593,13 @@ V.executiva=()=>{
     <div class="k">Caixa de ${M(fm(caixaSaldo()))} menos custos previstos e reserva operacional</div>
   </section>
 
-  <div class="grid g2" style="margin-top:14px">
-  <section class="card" id="simcard">
-    <div class="chead"><div><h2>Simulador de compra</h2><p class="sub">Arraste para ver o efeito de um carro novo no caixa e no estoque.</p></div></div>
-    <div id="simout">${simHtml()}</div>
-    <input class="range" id="simr" type="range" min="20000" max="${maxSim}" step="5000" value="${S.sim}" aria-label="Valor da compra">
-    <div class="chips" style="margin-top:6px">${[50000,100000,200000,Math.round(Math.max(0,disp)/10000)*10000].filter((v,i)=>v>=20000||i===3&&v>0).map((v,i,a)=>`<button class="chip" data-act="simv" data-v="${v}">${i===a.length-1&&v===Math.round(Math.max(0,disp)/10000)*10000?'Máximo ':''}${fK(v)}</button>`).join('')}</div>
-  </section>
-  <section class="card">
-    <div class="chead"><div><h2>Mapa de decisão do estoque</h2><p class="sub">Dias à venda contra margem prevista. O tamanho é o capital parado.</p></div></div>
-    ${matrixPts().length?`<div class="ch" data-chart="matrix"></div>
-    <div class="legend"><span><i style="background:var(--acc);border-radius:50%"></i>Dentro da meta de ${MD} dias</span><span><i style="background:var(--warn);border-radius:50%"></i>Acima da meta</span></div>
-    ${table(['Veículo','Dias','Margem'],matrixPts().map(v=>[E(v.modelo||nomeV(v)),dias_(v),fP(margemProj(v))]))}`:emptyBox('Cadastre o valor anunciado dos veículos em estoque para ver o mapa.')}
-  </section></div>
-
   <section class="card" style="margin-top:14px">
-    <div class="chead"><div><h2>Radar</h2><p class="sub">O que olhar primeiro hoje</p></div></div>
-    <div class="chips" role="tablist">${Object.entries(radar).map(([k,r])=>`<button class="chip ${S.radar===k?'on':''}" data-act="radar" data-k="${k}">${r.l}</button>`).join('')}</div>
-    <div class="rows" style="margin-top:12px">${R.list.length?R.list.map(r=>`<div class="row"><div class="badge ${r[3]}">${ic(r[3]==='pos'?'trend':'alert')}</div><div class="grow"><div class="t">${r[0]}</div><div class="s">${r[2]}</div></div><div class="r"><b class="num ${r[3]}-t">${M(r[1])}</b></div></div>`).join(''):emptyBox(S.radar==='atencao'?'Nenhum veículo precisa de atenção agora.':'Sem dados suficientes ainda.')}</div>
-  </section>
-
-  <div class="grid g2" style="margin-top:14px">
-  <section class="card">
-    <div class="chead"><div><h2>Especulação</h2><p class="sub">Simule a compra antes de gastar</p></div></div>
-    <div class="rows">${esp.length?esp.map(({v,a})=>{const tn={good:'pos',warn:'warn',bad:'neg'}[a.tone]||'',open=S.xopen['e'+v.id];return`<div class="rowx ${open?'open':''}" data-act="xopen" data-id="e${E(v.id)}"><div class="row nb" style="padding-bottom:0;border-bottom:0"><div class="badge warn">${ic('spark')}</div><div class="grow"><div class="t">${E(nomeV(v))}${v.ano?' '+E(v.ano):''} <span class="pill ${tn}" style="height:20px;font-size:11px">${a.veredito}</span></div><div class="s">Capital ${M(fK(a.investimento))} · anúncio ${a.anunciado?M(fK(a.anunciado)):'—'}</div></div><div class="r">${a.lucro!=null?`<b class="num ${a.lucro>=0?'pos-t':'neg-t'}">${a.lucro>=0?'+':'−'} ${M(fK(Math.abs(a.lucro)))}</b><div class="s">${a.margemPct!=null?fP(a.margemPct)+' previsto':''}</div>`:'<div class="s">sem anúncio</div>'}</div></div><div class="more"><div>${a.resumo}</div><div class="espv">${a.checks.map(c=>`<div>${c.ok?'✅':(c.critical?'❌':'⚠️')} ${c.txt}</div>`).join('')}</div></div></div>`}).join('<div class="sep" style="margin:12px 0"></div>')+espAll:emptyBox('Nenhuma especulação. Cadastre um veículo como Especulação para simular a compra aqui.')}</div>
-  </section>
-  <section class="card">
-    <div class="chead"><div><h2>Oportunidades</h2><p class="sub">Padrões que aparecem nas suas vendas</p></div></div>
+    <div class="chead"><div><h2>Oportunidades</h2></div></div>
     <div class="rows">${opp.join('')}</div>
-  </section></div>`;
+  </section>`;
 };
 
-/* ---------- SÓCIOS (aportes e pró-labore) ---------- */
-V.prolabore=()=>{
-  const SO=socios(),totAp=totalAportado(),totRt=totalRetirado();
-  const sums=id=>({ap:sum((state.contributions||[]).filter(c=>c.socioId===id).map(c=>Number(c.valor||0))),rt:sum((state.withdrawals||[]).filter(w=>w.socioId===id).map(w=>Number(w.valor||0)))});
-  const parts=SO.map((s,i)=>({s,i,x:sums(s.id)}));
-  const semSocio={ap:totAp-sum(parts.map(p=>p.x.ap)),rt:totRt-sum(parts.map(p=>p.x.rt))};
-  const sc=({s,i,x})=>`<div class="sc"><div style="display:flex;gap:10px;align-items:center"><div class="av" style="background:${sCor(i)}">${E(String(s.nome||'?')[0].toUpperCase())}</div><div><b style="font-size:15px">${E(s.nome)}</b><div class="k">${totAp>0?fP(x.ap/totAp*100):'0,0%'} do capital</div></div></div><div class="k" style="margin-top:12px">Aportado</div><div class="mid num pos-t">${M(fK(x.ap))}</div><div class="k" style="margin-top:8px">Retirado</div><div style="font-weight:800" class="num">${M(fK(x.rt))}</div><div class="sep" style="margin:10px 0"></div><div class="k">Saldo líquido</div><div style="font-weight:800;font-size:17px" class="num">${M(fK(x.ap-x.rt))}</div></div>`;
-  const movs=[...(state.contributions||[]).map((c,i)=>({k:'ap',o:c,i})),...(state.withdrawals||[]).map((w,i)=>({k:'rt',o:w,i}))].sort((a,b)=>String(b.o.date||'').localeCompare(String(a.o.date||''))||b.i-a.i);
-  const barItems=parts.map(p=>({n:E(p.s.nome),v:p.x.ap,c:sCor(p.i)}));
-  const lab=parts.length===2&&totAp>0?`<span>${E(parts[0].s.nome)} ${fP(parts[0].x.ap/totAp*100)}</span><span>${fP(parts[1].x.ap/totAp*100)} ${E(parts[1].s.nome)}</span>`:parts.map(p=>`<span>${E(p.s.nome)} ${totAp>0?fP(p.x.ap/totAp*100):'0,0%'}</span>`).join('');
-  return`
-  <section class="card hero2 enter">
-    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap"><div><div class="k">Capital aportado pelos sócios</div><div class="big num" style="margin-top:4px">${M(fm(totAp))}</div></div><div style="display:flex;gap:8px"><button class="btn pos sm" data-act="mov" data-t="aporte">${ic('plus','sm')} Aporte</button><button class="btn neg sm" data-act="mov" data-t="retirada">${ic('minus','sm')} Retirada</button></div></div>
-    ${totAp>0&&parts.length?`<div style="margin:18px 0 8px;display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;font-size:13px;font-weight:700">${lab}</div>
-    <div class="sbar tall" role="img" aria-label="Divisão do capital aportado">${barItems.filter(i=>i.v>0).map(i=>`<i style="width:${i.v/totAp*100}%;background:${i.c}" data-tip="${E(tipHtml(i.n,[['Aportado',fm(i.v)]]))}"></i>`).join('')}</div>`:''}
-  </section>
-  ${parts.length?`<div class="duo" style="margin-top:14px">${parts.map(sc).join('')}</div>`:''}
-  <div class="grid g21" style="margin-top:14px">
-  <section class="card">
-    <div class="chead"><div><h2>Movimento por mês</h2><p class="sub">Aportes sobem, retiradas descem</p></div></div>
-    <div class="ch" data-chart="socios"></div>
-    <div class="legend">${parts.map(p=>`<span><i style="background:${sCor(p.i)}"></i>${E(p.s.nome)}</span>`).join('')}<span style="color:var(--mut)">Retiradas em tom mais claro</span></div>
-    ${table(['Data','Tipo','Sócio','Valor'],movs.map(m=>[dBR(m.o.date),m.k==='ap'?'Aporte':'Retirada',E(socioNome(m.o.socioId)),M(fK(Number(m.o.valor||0)))]))}
-  </section>
-  <section class="card">
-    <div class="chead"><div><h2>Histórico</h2><p class="sub">Quem lançou fica registrado</p></div></div>
-    <div class="rows">${movs.length?movs.map(m=>{const o=m.o,ap=m.k==='ap',i=socioIdx(o.socioId),nm=socioNome(o.socioId),ini=ap&&o.inicial;return`<div class="row hrow"><div class="av" style="background:${sCor(i)};width:40px;height:40px;border-radius:13px">${E(String(nm||'?')[0].toUpperCase())}</div><div class="grow"><div class="t">${E((ap?o.origem:o.motivo)||(ap?'Aporte':'Pró-labore'))}${ini?' <span class="pill acc" style="height:20px;font-size:11px">inicial</span>':''}</div><div class="s">${E(nm)} · ${dBR(o.date)} · lançado por ${E(o.criadoPor||'—')}</div></div><div class="r"><b class="num ${ap?'pos-t':'neg-t'}">${ap?'+':'−'} ${M(fm(Number(o.valor||0)))}</b></div><button class="ico-btn" data-act="medit" data-k="${m.k}" data-id="${E(o.id)}" aria-label="Editar" title="Editar">${ic('edit','sm')}</button><button class="ico-btn dng" data-act="mdel" data-k="${m.k}" data-id="${E(o.id)}" aria-label="Excluir" title="Excluir">${ic('trash','sm')}</button></div>`}).join(''):emptyBox('Nenhum aporte ou retirada registrado.')}</div>
-  </section></div>`;
-};
+/* (a aba Sócios foi incorporada ao Financeiro: aportes e retiradas ficam em V.caixa) */
 
 /* =====================================================================
    NAVEGAÇÃO, CABEÇALHO E RENDER
@@ -690,11 +613,11 @@ function syncRailStatus(){const rs=$('#rail-sync'),sy=$('#ac-sync');if(rs&&sy)rs
 function renderView(){
   const t=NAV.find(x=>x.id===activeTab)||NAV[0],v=$('#view');if(!v)return;
   const keep=document.activeElement&&document.activeElement.id,sel=keep&&document.activeElement.selectionStart;
-  v.innerHTML=`<div class="ptitle"><div><h1>${t.t}</h1><p>${SUB[t.id]()}</p></div>${t.id==='veiculos'?`<button class="btn" data-act="vnew">${ic('plus','sm')} Novo veículo</button>`:''}</div>`+V[t.id]()+`<p class="foot-note">Dados salvos automaticamente e sincronizados na nuvem.<br><button type="button" data-act="hist">Histórico de alterações</button></p>`;
-  drawCharts();
+  v.innerHTML=`<div class="ptitle"><div><h1>${t.t}</h1>${SUB[t.id]()?`<p>${SUB[t.id]()}</p>`:''}</div>${t.id==='veiculos'?`<button class="btn" data-act="vnew">${ic('plus','sm')} Novo veículo</button>`:''}</div>`+V[t.id]()+`<p class="foot-note">Dados salvos automaticamente e sincronizados na nuvem.</p>`;
+  drawCharts();fitTiles();
+  if(document.fonts&&document.fonts.ready)document.fonts.ready.then(fitTiles);
   if(t.id==='dashboard'&&S.first)countUp();
   S.first=false;
-  const sr=$('#simr');if(sr)sr.addEventListener('input',e=>{S.sim=+e.target.value;$('#simout').innerHTML=simHtml()});
   if(keep&&['vq','cq','pq','lq'].includes(keep)){const n=document.getElementById(keep);if(n){n.focus();try{n.setSelectionRange(sel,sel)}catch(_){}}}
 }
 function countUp(){const el=$('#heroNum .m');if(!el||matchMedia('(prefers-reduced-motion:reduce)').matches)return;const end=patrimonio(),t0=performance.now();(function f(t){const k=Math.min(1,(t-t0)/900),e=1-Math.pow(1-k,3);el.textContent=fm(end*e);if(k<1)requestAnimationFrame(f)})(t0)}
@@ -758,19 +681,14 @@ function act(a,d){
     case 'vf': S.vf=d.k;renderView(); break;
     case 'vendidos': S.vf='vendido';S.vq='';setTab('veiculos');window.scrollTo({top:0}); break;
     case 'pf': S.pf=d.k;renderView(); break;
-    case 'radar': S.radar=d.k;renderView(); break;
     case 'open': {S.open[d.id]=!S.open[d.id];const el=document.querySelector(`article[data-id="${CSS.escape(d.id)}"]`);if(el)el.classList.toggle('open',S.open[d.id]);break}
     case 'xopen': {S.xopen[d.id]=!S.xopen[d.id];const el=document.querySelector(`.rowx[data-id="${CSS.escape(d.id)}"]`);if(el)el.classList.toggle('open',S.xopen[d.id]);break}
-    case 'simv': {S.sim=Math.max(20000,+d.v);const r=$('#simr');if(r)r.value=S.sim;$('#simout').innerHTML=simHtml();break}
+    case 'pres': {S.xopen[d.id]=!S.xopen[d.id];const el=document.querySelector(`[data-pres="${CSS.escape(d.id)}"]`);if(el){el.classList.toggle('open',S.xopen[d.id]);const b=el.querySelector('.pres-btn');if(b)b.setAttribute('aria-expanded',S.xopen[d.id])}break}
     case 'meta': openGoal(); break;
     case 'lanc': openTx(); break;
     case 'csv': exportCaixaCSV(); break;
     case 'more': S.climit+=200;renderView(); break;
     case 'txdel': deleteTransaction(d.id); break;
-    case 'fechar': acFecharMes(d.m); break;
-    case 'reabrir': acReabrirMes(d.m); break;
-    case 'fechcsv': acExportFech(); break;
-    case 'fechall': S.fechAll=!S.fechAll;renderView(); break;
     case 'vnew': openVehicleModal(); break;
     case 'cwa': { const c=clientesList().find(x=>x.key===d.k), u=c&&waUrl(c); if(u) window.open(u,'_blank','noopener'); else showToast('Este cliente está sem telefone cadastrado.'); break; }
     case 'ccopy': { const c=clientesList().find(x=>x.key===d.k); if(c&&c.tel&&navigator.clipboard){ navigator.clipboard.writeText(c.tel).then(()=>showToast('Telefone copiado')); } break; }
@@ -794,7 +712,6 @@ function act(a,d){
     case 'mdel': if(d.k==='ap')deleteContribution(d.id);else deleteWithdrawal(d.id); break;
     case 'pick': {const sel=document.getElementById(d.s);if(sel){sel.value=d.v;buildSocioPicks()}break}
     case 'pickt': setPick(d.i,d.v); break;
-    case 'hist': acShowHistory(); break;
     case 'account': renderChrome();openModalEl('account-modal'); break;
     case 'acc-aporte': closeModalEl('account-modal');openOnboardingModal(); break;
     case 'acc-export': exportBackup(); break;
@@ -844,7 +761,7 @@ window.duoInstall=function(){
   window._renderActivePanel=function(){try{acRenderPro();buildSocioPicks()}catch(_){}renderView()};
   window.setTab=function(id){activeTab=id;renderChrome();renderView()};
   // funções antigas de desenho que outros trechos ainda podem chamar (ex.: depois de salvar): redesenham a tela atual
-  ['renderVehicles','renderPartners','renderCaixa','renderMensal','renderCapital','renderDashboard','renderVendas','renderExecutiva','acRenderFechamento','renderFluxoMensal','renderVehSummary'].forEach(n=>{window[n]=function(){renderView()}});
+  ['renderVehicles','renderPartners','renderCaixa','renderMensal','renderCapital','renderDashboard','renderVendas','renderExecutiva','renderFluxoMensal','renderVehSummary'].forEach(n=>{window[n]=function(){renderView()}});
   window.onVehFilter=function(){renderView()};
   window.onPartnerSearch=function(t){S.pq=t||'';renderView()};
   window.setPartnerFilter=function(t){S.pf=t;renderView()};
