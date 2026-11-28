@@ -619,7 +619,7 @@ V.executiva=()=>{
   S.sim=Math.min(maxSim,Math.max(20000,S.sim));
   return`
   <section class="card hero2 enter">
-    <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start"><div><div class="k">Disponível para nova compra</div><div class="big num" style="margin-top:4px">${M(fm(Math.max(0,disp)))}</div></div><span class="pill ${cl.t}">${ic(cl.t==='pos'?'check':cl.t==='warn'?'alert':'x','sm')} ${cl.l}</span></div>
+    <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap"><div><div class="k">Disponível para nova compra</div><div class="big num" style="margin-top:4px">${M(fm(Math.max(0,disp)))}</div></div><span class="pill ${cl.t}">${ic(cl.t==='pos'?'check':cl.t==='warn'?'alert':'x','sm')} ${cl.l}</span></div>
     <p class="sub" style="margin:10px 0 14px;font-size:13.5px">${cl.d}</p>
     ${stack(seg,true)}
     <div class="legend">${seg.map(s=>`<span><i style="background:${s.c}"></i>${s.n} <b style="color:var(--tx)">${M(fK(s.v))}</b></span>`).join('')}</div>
@@ -664,7 +664,7 @@ V.prolabore=()=>{
   const totAp=totalAportado(),totRt=totalRetirado(),cap0=Number(state.capitalInicial||0);
   const movs=[...(state.contributions||[]).map((c,i)=>({k:'ap',o:c,i})),...(state.withdrawals||[]).map((w,i)=>({k:'rt',o:w,i}))].sort((a,b)=>String(b.o.date||'').localeCompare(String(a.o.date||''))||b.i-a.i);
   return`
-  <div class="kpis" style="grid-template-columns:repeat(3,1fr)">
+  <div class="kpis kpis-3">
     <div class="kpi"><span class="k">Capital colocado</span><span class="v num pos-t">${M(fK(totAp))}</span><span class="d">aportes na operação</span></div>
     <div class="kpi"><span class="k">Já retirado</span><span class="v num neg-t">${M(fK(totRt))}</span><span class="d">pró-labore e retiradas</span></div>
     <div class="kpi"><span class="k">Saldo líquido</span><span class="v num">${M(fK(totAp-totRt))}</span><span class="d">colocado menos retirado</span></div>

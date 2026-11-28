@@ -645,3 +645,47 @@ tbody tr:last-child td{border-bottom:0}
 .gxl b{font-weight:800}
 /* confirmações e avisos sempre acima de qualquer janela aberta (ex.: Conta > Importar backup) */
 #modal-confirm{z-index:65!important}
+
+/* aba Capital: 3 cards em coluna única no celular, lado a lado no desktop */
+.kpis.kpis-3{grid-template-columns:minmax(0,1fr)}
+@media(min-width:700px){.kpis.kpis-3{grid-template-columns:repeat(3,minmax(0,1fr))}}
+
+/* ---------- anti rolagem lateral (celular) ----------
+   Causa comum: grades sem largura mínima zero crescem até o tamanho do texto mais longo
+   e empurram a tela para o lado. Aqui toda grade/linha pode encolher e o texto quebra. */
+html,body{max-width:100%;overflow-x:clip}
+.page,.shell,.card,.pcard,.veh,.cli,.hero,.hero2{min-width:0;max-width:100%}
+.page{overflow-x:clip}
+@media(max-width:1019px){
+  .plist,.vlist,.cli,.rows,.tlg{grid-template-columns:minmax(0,1fr)}
+  .tlg.g3{grid-template-columns:repeat(3,minmax(0,1fr))}
+}
+.pstats,.vgrid,.custo-sum{grid-template-columns:repeat(3,minmax(0,1fr))}
+.pstats>div,.vgrid>div{min-width:0}
+.pstats small,.vgrid small,.pstats b,.vgrid b,.cli .cr b,.more .cr b,.k,.sub,.t,.s{overflow-wrap:break-word;hyphens:auto}
+.cli .cr{flex-wrap:wrap}
+.cli .cr b{min-width:0;max-width:100%}
+.pact,.cli-act,.ptitle,.chead,.heroTop,.veh .h>.grow{min-width:0}
+.pact{flex-wrap:wrap}
+.pact .btn{flex:1 1 auto;min-width:0;padding:0 10px}
+.ptitle{flex-wrap:wrap}
+.chead{flex-wrap:wrap}
+.chead>*{min-width:0}
+.pill{max-width:100%}
+.veh .h{min-width:0}
+.veh .h>*{min-width:0}
+.veh .h>.chev,.veh .h>.mg{flex:none}
+.hrow,.row{min-width:0}
+.row>*{min-width:0}
+.row .r{flex:0 1 auto}
+.table-wrap{max-width:100%;overflow-x:auto}
+img,svg,canvas,video{max-width:100%}
+@media(max-width:520px){
+  .kpi .v{font-size:19px}
+  .btn{padding:0 12px}
+}
+.t,.cli-h .t,.pcard b,.veh .t{hyphens:manual}
+.vm-out{grid-template-columns:repeat(2,minmax(0,1fr))}
+.vm-out .o{min-width:0}
+.vm-out .o b,.vm-out .o i{max-width:100%;overflow-wrap:break-word}
+@media(max-width:360px){.vm-out .o b{font-size:17px}.vm-out .o{padding:14px 8px}}

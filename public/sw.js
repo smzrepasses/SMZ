@@ -1,6 +1,6 @@
 // Service worker do SMZ Repasses — só deixa o app instalável e abrir mais rápido.
 // Dados financeiros NUNCA ficam em cache aqui: ficam no Supabase e no aparelho (já existente no sistema).
-const CACHE = 'smz-shell-v10';
+const CACHE = 'smz-shell-v12';
 const SHELL = ['./', 'index.html', 'config.js', 'visual.js', 'gestao.js', 'graficos.js', 'visual.css', 'logo-smz.webp', 'favicon.png', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png', 'apple-touch-icon.png'];
 
 self.addEventListener('install', e => {
