@@ -330,7 +330,7 @@
       <div class="form-grid">
         <div><label>Data</label><input type="date" name="date" id="ap-date" required></div>
         <div><label>Valor (R$)</label><input type="text" inputmode="decimal" class="money-input val" onblur="formatMoneyOnBlur(event)" name="valor" id="ap-valor" required placeholder="0,00"></div>
-        <select name="socio" id="ap-socio" style="display:none"></select>
+        <div style="grid-column:1/-1"><label>Sócio</label><select name="socio" id="ap-socio" style="display:none"></select><div class="pick" id="ap-socio-pick"></div></div>
         <div style="grid-column:1/-1"><label>Origem</label><input type="text" name="origem" id="ap-origem" placeholder="Ex: aporte inicial, sócio, reforço de caixa"></div>
       </div>
       <div class="flex-between" style="margin-top:16px">
@@ -348,7 +348,7 @@
       <div class="form-grid">
         <div><label>Data</label><input type="date" name="date" id="wd-date" required></div>
         <div><label>Valor (R$)</label><input type="text" inputmode="decimal" class="money-input val" onblur="formatMoneyOnBlur(event)" name="valor" id="wd-valor" required placeholder="0,00"></div>
-        <select name="socio" id="wd-socio" style="display:none"></select>
+        <div style="grid-column:1/-1"><label>Sócio</label><select name="socio" id="wd-socio" style="display:none"></select><div class="pick" id="wd-socio-pick"></div></div>
         <div style="grid-column:1/-1"><label>Motivo</label><input type="text" name="motivo" id="wd-motivo"></div>
       </div>
       <div class="flex-between" style="margin-top:16px">
@@ -394,8 +394,6 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <script src="config.js"></script>
 <script src="visual.js"></script>
-<script src="gestao.js"></script>
-<script src="graficos.js"></script>
 <script>
 /* ======================================================================
    REVISÃO DE AUDITORIA (02/10/2026) — versão final.
@@ -415,7 +413,7 @@
 /* ============================================================
    MÓDULO 1 · CONFIGURAÇÃO / CONSTANTES
    ============================================================ */
-const CATEGORIAS = ["Compra de veículo","Pagamento repasse","Venda","Transferência","Comissão","Manutenção","Documentação","Combustível","Pedágio","Lavagem","Polimento","Funilaria","Pintura","Elétrica","Mecânica","Troca de óleo","Pneus","Despachante","IPVA","Licenciamento","Seguro","Guincho","Publicidade","Marketing","Honorários","Despesa fixa","Imposto","Retirada Pró-labore","Aporte","Rendimento","Outros"];
+const CATEGORIAS = ["Compra de veículo","Pagamento repasse","Venda","Transferência","Comissão","Manutenção","Documentação","Combustível","Pedágio","Lavagem","Polimento","Funilaria","Pintura","Elétrica","Mecânica","Troca de óleo","Pneus","Despachante","IPVA","Licenciamento","Seguro","Guincho","Publicidade","Marketing","Honorários","Retirada Pró-labore","Aporte","Rendimento","Outros"];
 
 const STORE_KEY = "autocapital:state:v2";
 
@@ -670,7 +668,7 @@ function runMigrations(){
 /* ------------------------------------------------------------
    2.2 · VALIDAÇÃO DE FORMA DO ESTADO (usada antes de qualquer gravação)
    ------------------------------------------------------------ */
-const STATE_ARRAY_FIELDS = ['transactions','vehicles','withdrawals','contributions','garagePartners','auditLog','despesasFixas'];
+const STATE_ARRAY_FIELDS = ['transactions','vehicles','withdrawals','contributions','garagePartners','auditLog'];
 const STATE_NUMERIC_FIELDS = ['capitalInicial','reservaOperacional'];
 
 // Validação estrutural leve: não impõe regras de negócio (isso é papel de
@@ -1124,7 +1122,6 @@ function exportBackup(){
 
 function importBackup(event){
   const input = event.target;
-  try{ closeModalEl('account-modal'); }catch(_){}
   const file = input.files && input.files[0];
   if(!file) return;
 
@@ -1720,16 +1717,6 @@ function veiculosVendidos(){ return state.vehicles.filter(v=>v.status==='Vendido
 function veiculosEstoqueAtivo(){ return state.vehicles.filter(v=>v.status!=='Vendido' && !isEspeculacao(v) && !isDesistencia(v)); }
 function veiculosEspeculacao(){ return state.vehicles.filter(isEspeculacao); }
 
-/* ---- Controle de recebimento e de comissão (módulo Resultado) ----
-   Comissão pendente: venda de carro de garagem parceira cuja comissão já entrou no lucro (competência),
-   mas ainda NÃO saiu do caixa. Só existe quando v.comissaoPaga === false. Dados antigos (campo ausente)
-   continuam valendo como comissão já paga: a saída já está no caixa.
-   Valor a receber: parte da venda que o caixa já contabilizou, mas o dinheiro ainda não entrou na conta. */
-function vehicleComissaoPendente(v){ return (v && v.status==='Vendido' && v.comissaoPaga===false) ? (vehicleComissao(v)||0) : 0; }
-function vehicleAReceber(v){ return (v && v.status==='Vendido') ? Math.max(0, Number(v.aReceber||0)) : 0; }
-function totalComissoesPendentes(){ return (state.vehicles||[]).reduce((s,v)=>s+vehicleComissaoPendente(v),0); }
-function totalAReceber(){ return (state.vehicles||[]).reduce((s,v)=>s+vehicleAReceber(v),0); }
-
 /* ============================================================
    MÓDULO 5 · DOMÍNIO — TEMPO MÉDIO DE VENDA
    ============================================================ */
@@ -1946,7 +1933,7 @@ function auditFinancialIntegrity(){
           motivo:`Aporte "${c.id}" não tem transaction vinculada por contributionId, e existem ${candidatosAmbíguos.length} transactions candidatas idênticas (mesma data/valor) — não é possível determinar com segurança qual pertence a este aporte.`});
       } else {
         erros.push({tipo:'APORTE_SEM_TRANSACTION', contributionId:c.id,
-          detalhe:`Aporte "${c.id}" (${c.origem||'aporte'}, ${fmt(c.valor)}) não possui transaction correspondente no caixa.`});
+          detalhe:`Aporte "${c.id}" (${c.origem||'sócio'}, ${fmt(c.valor)}) não possui transaction correspondente no caixa.`});
       }
     }
     // Duplicidade (mais de 1 tx) já é relatada em APORTE_TX_DUPLICADA (item 2).
@@ -2015,8 +2002,7 @@ function auditFinancialIntegrity(){
   const patrimonioEsperado = Number(state.capitalInicial||0)
     + contributions.reduce((s,c)=>s+Number(c.valor||0),0)
     - withdrawals.reduce((s,w)=>s+Number(w.valor||0),0)
-    + manualLiquido + lucroVendidos - perdaDesist
-    + totalComissoesPendentes(); // comissão já abatida do lucro, mas ainda não saiu do caixa
+    + manualLiquido + lucroVendidos - perdaDesist;
   if(Math.abs(patrimonioEsperado - patrimonioOficial) > 0.01){
     erros.push({tipo:'IDENTIDADE_PATRIMONIAL_NAO_FECHA', esperado:patrimonioEsperado, encontrado:patrimonioOficial,
       detalhe:`Aportes − retiradas + manuais + lucro dos vendidos = ${fmt(patrimonioEsperado)}, mas o patrimônio calculado é ${fmt(patrimonioOficial)} (diferença de ${fmt(patrimonioOficial-patrimonioEsperado)}).`});
@@ -2809,7 +2795,7 @@ function handleSaveVehicle(ev){
   }
   if(editingVehicleId){
     const idx = state.vehicles.findIndex(v=>v.id===editingVehicleId);
-    if(idx < 0){ closeVehicleModal(); showToast('Este veículo não existe mais (pode ter sido removido). Nada foi salvo.', 'error'); return false; }
+    if(idx < 0){ closeVehicleModal(); showToast('Este veículo não existe mais (pode ter sido removido pelo seu sócio). Nada foi salvo.', 'error'); return false; }
     state.vehicles[idx] = vehicle;
     const txCompra = state.transactions.find(t=>t.vehicleId===editingVehicleId && t.categoria==='Compra de veículo');
     if(txCompra){
@@ -2834,7 +2820,7 @@ function handleSaveVehicle(ev){
     const txCom = state.transactions.find(t=>t.vehicleId===id && t.categoria==='Comissão');
     if(comissaoNova>0){
       if(txCom){ txCom.valor = comissaoNova; txCom.desc = `Comissão parceiro — ${vehicle.marca} ${vehicle.modelo}`; }
-      else if(vehicle.comissaoPaga!==false) state.transactions.push({id:uid(), date:vehicle.dataVenda||todayLocal(), desc:`Comissão parceiro — ${vehicle.marca} ${vehicle.modelo}`, categoria:'Comissão', tipo:'saida', valor:comissaoNova, vehicleId:id});
+      else state.transactions.push({id:uid(), date:vehicle.dataVenda||todayLocal(), desc:`Comissão parceiro — ${vehicle.marca} ${vehicle.modelo}`, categoria:'Comissão', tipo:'saida', valor:comissaoNova, vehicleId:id});
     } else if(txCom){
       state.transactions = state.transactions.filter(t=>t!==txCom);
     }
@@ -3079,7 +3065,6 @@ function desfazerVenda(id){
       });
       delete v.valorVendido;
       delete v.dataVenda;
-      delete v.comissaoPaga; delete v.comissaoPagaEm; delete v.aReceber; delete v.recebidoEm;
       const internet = v.canalVenda==='Internet';
       v.status = internet ? 'Comprado' : 'Garagem Parceira';
       const ok = saveState(); render();
@@ -3535,14 +3520,6 @@ function openSaleModal(id){
   document.getElementById('sale-garagem-hint').style.display = viaGaragem ? '' : 'none';
   document.getElementById('sale-opc1').style.display = document.getElementById('sale-opc2').style.display = viaGaragem ? '' : 'none';
   tempTrocaCustos = [];
-  { // comissão da garagem: pergunta se já foi paga (novo = pendente; venda já registrada = como está hoje)
-    const comVal = Number(v.comissaoValor||0)>0 && v.comissaoTipo==='fixo' ? Number(v.comissaoValor) : (v.comissaoTipo==='pct' ? (Number(v.valorAnunciado||0)*Number(v.comissaoValor||0)/100) : 0);
-    const wrap = document.getElementById('sale-com-wrap');
-    wrap.style.display = comVal>0 ? '' : 'none';
-    document.getElementById('sale-com-val').textContent = comVal>0 ? '('+fmt(comVal)+')' : '';
-    form.elements['comissaoPaga'].checked = v.status==='Vendido' ? (v.comissaoPaga!==false) : false;
-    form.elements['aReceber'].value = (v.status==='Vendido' && Number(v.aReceber||0)>0) ? toBRL(v.aReceber) : '';
-  }
   stToggle(); stRenderCustos();
   openModalEl('sale-modal');
 }
@@ -3634,7 +3611,6 @@ function handleConfirmSale(ev){
     if(!(troca.valor>0)){ showToast('Informe o valor do veículo que está entrando na troca'); return false; }
   }
   v.valorVendido = valorVendido;
-  { const ar = parseMoney(fd.get('aReceber')||''); if(ar>0 && ar<=valorVendido){ v.aReceber = ar; } else { delete v.aReceber; delete v.recebidoEm; if(ar>valorVendido){ showToast('O valor a receber não pode ser maior que a venda; ignorado.'); } } }
   v.comprador = nomeC; v.compradorTel = telC;
   v.dataVenda = dataVenda;
   v.status = 'Vendido';
@@ -3670,13 +3646,7 @@ function handleConfirmSale(ev){
     else state.transactions.push({id:uid(), date:dataVenda, desc, categoria:'Pagamento repasse', tipo:'saida', valor:Number(v.valorCompra||0), vehicleId:id});
   }
   let txComissao = state.transactions.find(t=>t.vehicleId===id && t.categoria==='Comissão');
-  const comPaga = !!fd.get('comissaoPaga');
-  if(comissao>0 && !comPaga){
-    // comissão devida mas ainda não paga: entra no lucro (competência), só sai do caixa quando for paga
-    if(txComissao) state.transactions = state.transactions.filter(t=>t!==txComissao);
-    v.comissaoPaga = false; delete v.comissaoPagaEm;
-  } else if(comissao>0){
-    v.comissaoPaga = true; if(!v.comissaoPagaEm) v.comissaoPagaEm = dataVenda;
+  if(comissao>0){
     if(txComissao){
       txComissao.date = dataVenda;
       txComissao.desc = `Comissão parceiro — ${v.marca} ${v.modelo}`;
@@ -3989,14 +3959,14 @@ function handleAddWithdrawal(ev){
     if(w){
       w.date = date; w.valor = valor; w.motivo = motivo; w.socioId = fd.get('socio')||'';
       const tx = state.transactions.find(t=>t.withdrawalId===w.id);
-      if(tx){ tx.date = date; tx.valor = valor; tx.desc = `Retirada — ${motivo||'pró-labore'}`; }
+      if(tx){ tx.date = date; tx.valor = valor; tx.desc = `Retirada (${acSocioNome(w.socioId)}) — ${motivo||'pró-labore'}`; }
     }
     cancelEditWithdrawal();
     successMsg = 'Retirada atualizada';
   } else {
     const w = {id:uid(), date, valor, motivo, socioId: fd.get('socio')||''};
     state.withdrawals.push(w);
-    state.transactions.push({id:uid(), date:w.date, desc:`Retirada — ${w.motivo||'pró-labore'}`, categoria:'Retirada Pró-labore', tipo:'saida', valor:w.valor, withdrawalId:w.id});
+    state.transactions.push({id:uid(), date:w.date, desc:`Retirada (${acSocioNome(w.socioId)}) — ${w.motivo||'pró-labore'}`, categoria:'Retirada Pró-labore', tipo:'saida', valor:w.valor, withdrawalId:w.id});
     successMsg = 'Retirada registrada';
   }
   ev.target.reset();
@@ -4052,14 +4022,14 @@ function handleAddContribution(ev){
     if(c){
       c.date = date; c.valor = valor; c.origem = origem; c.socioId = fd.get('socio')||'';
       const tx = state.transactions.find(t=>t.contributionId===c.id);
-      if(tx){ tx.date = date; tx.valor = valor; tx.desc = c.inicial ? 'Aporte inicial — abertura da operação' : `Aporte — ${origem||'aporte'}`; }
+      if(tx){ tx.date = date; tx.valor = valor; tx.desc = c.inicial ? 'Aporte inicial — abertura da operação' : `Aporte (${acSocioNome(c.socioId)}) — ${origem||'sócio'}`; }
     }
     cancelEditContribution();
     successMsg = 'Aporte atualizado';
   } else {
     const c = {id:uid(), date, valor, origem, inicial:false, transactionLinked:true, socioId: fd.get('socio')||''};
     state.contributions.push(c);
-    state.transactions.push({id:uid(), date, desc:`Aporte — ${origem||'aporte'}`, categoria:'Aporte', tipo:'entrada', valor, contributionId:c.id});
+    state.transactions.push({id:uid(), date, desc:`Aporte (${acSocioNome(c.socioId)}) — ${origem||'sócio'}`, categoria:'Aporte', tipo:'entrada', valor, contributionId:c.id});
     successMsg = 'Aporte registrado';
   }
   ev.target.reset();
@@ -4593,8 +4563,6 @@ function acEnsure(s){
   if(!Array.isArray(s.socios)) s.socios = [];
   if(!s.fechamentos || typeof s.fechamentos!=='object' || Array.isArray(s.fechamentos)) s.fechamentos = {};
   if(!Array.isArray(s.avisos)) s.avisos = [];
-  if(!Array.isArray(s.despesasFixas)) s.despesasFixas = [];
-  if(!s.gestao || typeof s.gestao!=='object' || Array.isArray(s.gestao)) s.gestao = {};
   return s;
 }
 function acSocioNome(id){ const s=(state.socios||[]).find(x=>x.id===id); return s ? s.nome : '—'; }
@@ -4746,8 +4714,7 @@ function acMergeMap(B,L,R){
 function acDedupLinks(s){
   const VC = ['Venda','Comissão','Compra de veículo','Pagamento repasse'];
   const keyOf = t => t.custoId ? 'c:'+t.custoId : t.contributionId ? 'a:'+t.contributionId : t.withdrawalId ? 'w:'+t.withdrawalId
-                   : (t.vehicleId && VC.includes(t.categoria)) ? 'v:'+t.vehicleId+':'+t.categoria
-                   : t.obrigKey ? 'o:'+t.obrigKey : null;
+                   : (t.vehicleId && VC.includes(t.categoria)) ? 'v:'+t.vehicleId+':'+t.categoria : null;
   const last = new Map(); (s.transactions||[]).forEach((t,i)=>{ const k=keyOf(t); if(k) last.set(k,i); });
   s.transactions = (s.transactions||[]).filter((t,i)=>{ const k=keyOf(t); return !k || last.get(k)===i; });
   (s.vehicles||[]).filter(v=>v.status==='Vendido').forEach(v=>{
@@ -4848,7 +4815,7 @@ function acBuildUI(){
   const login = document.createElement('div');
   login.id = 'ac-login';
   login.innerHTML = `<form class="box" onsubmit="return AC.doLogin(event)">
-    <img class="ac-logo" id="ac-logo" alt="SMZ Repasses"><p>Acesso restrito</p>
+    <img class="ac-logo" id="ac-logo" alt="SMZ Repasses"><p>Acesso restrito aos sócios</p>
     <label for="ac-email">E-mail</label><input id="ac-email" type="email" autocomplete="username" required>
     <label for="ac-pass">Senha</label><input id="ac-pass" type="password" autocomplete="current-password" required>
     <button type="submit" id="ac-login-btn">Entrar</button><div class="err" id="ac-login-err"></div></form>`;
@@ -4862,7 +4829,7 @@ function acBuildUI(){
   const _hl = document.querySelector('.logo-img'); if(_hl) document.getElementById('ac-logo').src = _hl.src;
 
   const mk = (id, html)=>{ const d=document.createElement('div'); d.className='modal-bg'; d.id=id; d.innerHTML=html; document.body.appendChild(d); };
-  mk('ac-avisos', `<div class="modal" style="max-width:520px"><h3 style="margin-top:0">🔔 Avisos</h3><div id="ac-avisos-list"></div>
+  mk('ac-avisos', `<div class="modal" style="max-width:520px"><h3 style="margin-top:0">🔔 Avisos do seu sócio</h3><div id="ac-avisos-list"></div>
     <div style="text-align:right;margin-top:16px"><button class="btn" type="button" onclick="acAvisoOk()">OK, estou ciente</button></div></div>`);
   mk('ac-hist', `<div class="modal" style="max-width:720px"><h3 style="margin-top:0">Histórico de alterações</h3>
     <div style="max-height:60vh;overflow:auto"><table class="ac-tbl"><thead><tr><th>Quando</th><th>Quem</th><th>O que mudou</th></tr></thead><tbody id="ac-hist-body"></tbody></table></div>
@@ -5053,7 +5020,7 @@ function acReabrirMes(m){
   const lb = acMonthLabel(m);
   showConfirm({
     title: `Reabrir ${lb}?`, danger: true, confirmLabel: 'Reabrir',
-    message: `Reabrir ${lb} permite alterar lançamentos desse mês.`,
+    message: `Reabrir ${lb} permite alterar lançamentos desse mês. Seu sócio será avisado.`,
     onConfirm: ()=>{ delete state.fechamentos[m]; const ok = saveState(); render(); if(ok) showToast(`${lb} reaberto`); }
   });
 }
@@ -5070,7 +5037,7 @@ function acUnread(){ return AC.user ? (state.avisos||[]).filter(a=>a.de!==AC.use
 function acRefreshBadges(){ const n=acUnread().length; const b=document.getElementById('ac-av-n'); if(b) b.textContent = n?`(${n})`:''; }
 function acShowAvisos(manual){
   const list = acUnread();
-  if(!list.length){ if(manual) showToast('Nenhum aviso novo.'); return; }
+  if(!list.length){ if(manual) showToast('Nenhum aviso novo do seu sócio.'); return; }
   document.getElementById('ac-avisos-list').innerHTML = list.map(a=>`<div class="ac-av">${esc(a.texto)}<small>${esc(a.deNome||'')} · ${new Date(a.em).toLocaleString('pt-BR')}</small></div>`).join('');
   openModalEl('ac-avisos');
 }
@@ -5088,6 +5055,7 @@ function acShowHistory(){
 
 if(window.duoInstall) window.duoInstall();
 AC.start();
+</script>
 </script>
 <script>try{ if(navigator.storage&&navigator.storage.persist) navigator.storage.persist(); }catch(e){}</script>
 <script>if('serviceWorker' in navigator){ const _had=!!navigator.serviceWorker.controller; navigator.serviceWorker.addEventListener('controllerchange',()=>{ if(_had && !window.__swr){ window.__swr=1; location.reload(); } }); window.addEventListener('load',()=>{ navigator.serviceWorker.register('sw.js').catch(()=>{}); }); }</script>

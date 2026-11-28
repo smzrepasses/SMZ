@@ -81,7 +81,7 @@ const NAV=[
  {id:'parceiros',l:'Parceiros',ic:'net',t:'Rede de parceiros',rail:'Parceiros'},
  {id:'clientes',l:'Clientes',ic:'users',t:'Clientes',rail:'Clientes'},
  {id:'executiva',l:'Executiva',ic:'compass',t:'Visão executiva',rail:'Visão executiva'},
- {id:'prolabore',l:'Capital',ic:'trend',t:'Aportes e retiradas',rail:'Aportes e retiradas'}
+ {id:'prolabore',l:'Sócios',ic:'duo',t:'Sócios',rail:'Aportes e pró-labore'}
 ];
 const hello=()=>{const h=new Date().getHours();return h<5?'Boa noite':h<12?'Bom dia':h<18?'Boa tarde':'Boa noite'};
 const firstName=()=>hasAC()?String(AC.nome||'').trim().split(/\s+/)[0]:'';
@@ -92,7 +92,7 @@ const SUB={
  parceiros:()=>'Quem prepara seus carros e quanto cada um rende.',
  clientes:()=>'Quem já comprou de você, para chamar de novo.',
  executiva:()=>'Para decidir: quanto comprar, o que vender e o que ajustar.',
- prolabore:()=>'O dinheiro que você colocou na operação e o que retirou.'
+ prolabore:()=>'Aportes e pró-labore de cada um, lado a lado.'
 };
 
 /* ---------- dados derivados (só leitura do estado existente) ---------- */
@@ -101,7 +101,7 @@ const nomeV=v=>`${v.marca||''} ${v.modelo||''}`.trim()||'Veículo';
 const margemProj=v=>{const l=vehicleLucroProjetado(v),a=Number(v.valorAnunciado||0);return(l!=null&&a>0)?l/a*100:null};
 const ativos=()=>veiculosEstoqueAtivo();
 const dias_=v=>stageOf(v)==='prep'?vehicleDiasPreparacao(v):vehicleDias(v);
-const socios=()=>{const all=state.socios||[],me=hasAC()&&AC.user?AC.user.id:null,o=all.filter(s=>s.id===me);return o.length?o:(me?[{id:me,nome:AC.nome||'Você'}]:all.slice(0,1))};
+const socios=()=>{const all=state.socios||[];const ids=(typeof AC!=='undefined'&&AC.members?AC.members:[]).map(m=>m.user_id);return ids.length?all.filter(s=>ids.includes(s.id)):all};
 const sCor=i=>['var(--sa)','var(--sb)','var(--c3)','var(--c4)'][i%4];
 const socioIdx=id=>Math.max(0,socios().findIndex(s=>s.id===id));
 const socioNome=id=>{const s=socios().find(x=>x.id===id);return s?s.nome:'—'};
@@ -237,7 +237,7 @@ function drawSocios(el){
     ks.forEach((s,j)=>{const v=c.ap[s.id],last=j===ks.length-1;up+=`<path d="${barP(x,Y(acc+v),bw,Math.max(2,y0-Y(v)-(acc?2:1)),true,last?4:1)}" fill="${s.cor}"/>`;acc+=v});
     let dn='',acd=0;SOx.filter(s=>c.rt[s.id]).forEach(s=>{const v=c.rt[s.id],yy=y0+1+(Y(-acd)-y0)+(acd?2:0);dn+=`<path d="${barP(x,yy,bw,Math.max(2,Y(-v)-y0-(acd?2:1)),false,4)}" fill="${s.cor}" opacity=".55"/>`;acd+=v});
     b+=`<g class="col" data-tip="${E(tp)}"><rect class="bg" x="${cx-slot/2+2}" y="${pt}" width="${slot-4}" height="${H-pt-pb}" rx="8"/>${up}${dn}<text class="ax" x="${cx}" y="${H-5}" text-anchor="middle">${lb}</text></g>`});
-  el.innerHTML=`<svg viewBox="0 0 ${W} ${H}" height="${H}" role="img" aria-label="Aportes e retiradas por mês">${g}${b}<line x1="${pl}" x2="${W-pr}" y1="${y0}" y2="${y0}" stroke="var(--line2)"/></svg>`;
+  el.innerHTML=`<svg viewBox="0 0 ${W} ${H}" height="${H}" role="img" aria-label="Aportes e retiradas por sócio e mês">${g}${b}<line x1="${pl}" x2="${W-pr}" y1="${y0}" y2="${y0}" stroke="var(--line2)"/></svg>`;
 }
 function drawMatrix(el){
   const W=el.clientWidth||340,H=290,pl=34,pr=10,pt=10,pb=30,xm=50,y0=5,y1=25,MD=META_DIAS_ESTOQUE,MM=META_MARGEM_MINIMA_PCT;
@@ -297,10 +297,9 @@ V.dashboard=()=>{
   const sa=act.filter(v=>!v.valorAnunciado||stageOf(v)==='prep').length;
   if(sa)al.push({t:'warn',ic:'tag',h:`${sa} veículo${sa>1?'s':''} sem anúncio definido`,s:'Ainda não anunciado(s) ou sem preço de anúncio.'});
   if(par>MP)al.push({t:'warn',ic:'alert',h:'Capital parado acima da meta',s:`${fP(par)} em estoque. A meta é ${MP}%.`});
-  try{(window.SMZ_GESTAO?SMZ_GESTAO.alertas():[]).forEach(a=>al.push(a))}catch(_){}
   if(!al.length)al.push({t:'pos',ic:'check',h:'Nenhum alerta crítico no momento',s:'Operação dentro do esperado.'});
   const un=hasAC()&&typeof acUnread==='function'?acUnread():[];
-  const aviso=un.length?`<div class="notice enter">${ic('alert')}<p>${un.length>1?`<b>${un.length} avisos novos.</b> Último: `:`<b>Aviso:</b> `}${M(E(un[un.length-1].texto))}</p><button class="btn sm ghost" data-act="ciente">Estou ciente</button></div>`:'';
+  const aviso=un.length?`<div class="notice enter">${ic('alert')}<p>${un.length>1?`<b>${un.length} avisos novos</b> do seu sócio. Último: `:`<b>${E(un[0].deNome||'Seu sócio')}</b> `}${M(E(un[un.length-1].texto))}</p><button class="btn sm ghost" data-act="ciente">Estou ciente</button></div>`:'';
   const ult=vend.slice().sort((a,b)=>String(b.dataVenda||'').localeCompare(String(a.dataVenda||''))).slice(0,4);
   return`${aviso}
   <div class="grid g21">
@@ -436,16 +435,15 @@ V.veiculos=()=>{
   let list=vehFilteredNew();
   if(S.vf==='vendido')list=list.sort((a,b)=>String(b.dataVenda||'').localeCompare(String(a.dataVenda||'')));
   return`
-  <div class="kpis kpis-3" style="margin-bottom:14px">
-    <div class="kpi"><span class="k">Capital</span><span class="v num">${M(fK(totEst))}</span></div>
-    <div class="kpi"><span class="k">Lucro previsto</span><span class="v num">${M(fK(proj))}</span></div>
-    <div class="kpi"><span class="k">Dias médios</span><span class="v num">${Math.round(dm)} d</span></div>
+  <div class="kpis" style="grid-template-columns:repeat(3,1fr);margin-bottom:14px">
+    <div class="kpi"><span class="k">Capital</span><span class="v num" style="font-size:17px">${M(fK(totEst))}</span></div>
+    <div class="kpi"><span class="k">Lucro previsto</span><span class="v num" style="font-size:17px">${M(fK(proj))}</span></div>
+    <div class="kpi"><span class="k">Dias médios</span><span class="v num" style="font-size:17px">${Math.round(dm)} d</span></div>
   </div>
   <label class="search">${ic('search','sm')}<input id="vq" type="search" placeholder="Buscar por marca, modelo, placa ou ano" value="${E(S.vq)}" aria-label="Buscar veículo"></label>
   <div class="chips" role="group" aria-label="Filtrar por situação">${fl.map(([k,l])=>`<button class="chip ${S.vf===k?'on':''}" data-act="vf" data-k="${k}">${l}<i>${cnt(k)}</i></button>`).join('')}</div>
   <div class="vlist" style="display:grid;gap:12px;margin-top:12px">${list.length?list.map(vcard).join(''):emptyBox(state.vehicles.length?'Nenhum veículo encontrado.':'Nenhum veículo cadastrado. Toque em "Novo veículo" para começar.')}</div>
-  <div class="vmore"><button class="btn ghost sm" data-act="vcsv">${ic('file','sm')} Exportar CSV</button></div>
-  <div style="margin-top:14px">${GX('ops')}</div>`;
+  <div class="vmore"><button class="btn ghost sm" data-act="vcsv">${ic('file','sm')} Exportar CSV</button></div>`;
 };
 
 /* ---------- FINANCEIRO ---------- */
@@ -463,12 +461,11 @@ V.caixa=()=>{
   const goals=state.monthlyGoals||{},mset=new Set([...Object.keys(goals).filter(k=>Number(goals[k])>0),ymNow(),...veiculosVendidos().map(v=>ymOf(v.dataVenda)).filter(Boolean)]);
   const mm=Array.from(mset).sort().reverse().slice(0,8);
   return`
-  <div class="kpis kpis-2">
-    <div class="kpi" style="grid-column:span 2"><span class="k">Saldo em caixa</span><span class="v num big">${M(fm(caixaSaldo()))}</span><span class="d">${totalCustosPrevistos()>0?M(fm(totalCustosPrevistos()))+' em custos previstos já reservados':'sem custos previstos reservados'}</span></div>
+  <div class="kpis" style="grid-template-columns:1fr 1fr">
+    <div class="kpi" style="grid-column:span 2"><span class="k">Saldo em caixa</span><span class="v num big" style="font-size:32px">${M(fm(caixaSaldo()))}</span><span class="d">${totalCustosPrevistos()>0?M(fm(totalCustosPrevistos()))+' em custos previstos já reservados':'sem custos previstos reservados'}</span></div>
     <div class="kpi"><span class="k">Entradas em ${nm}</span><span class="v num pos-t">${M(fm(ent))}</span></div>
     <div class="kpi"><span class="k">Saídas em ${nm}</span><span class="v num neg-t">${M(fm(sai))}</span></div>
   </div>
-  <div style="margin-top:14px">${GX('resultado')}</div>
   <div class="grid g21" style="margin-top:14px">
   <section class="card">
     <div class="chead"><div><h2>Entradas e saídas</h2><p class="sub">Últimos ${F.labels.length} meses. Toque na coluna para ver os valores.</p></div><button class="btn sm" data-act="lanc">${ic('plus','sm')} Lançar</button></div>
@@ -481,8 +478,6 @@ V.caixa=()=>{
     <div class="rows">${fv.length?fv.map(d=>{const f=d.fech,ended=acMonthEnded(d.m);return`<div class="row"><div class="badge ${f?'':'acc'}">${ic(f?'lock':'clock')}</div><div class="grow"><div class="t">${cap1(acMonthLabel(d.m))}</div><div class="s">${f?`Fechado por ${E(f.por||'')} em ${new Date(f.em).toLocaleDateString('pt-BR')}`:(ended?'Pronto para fechar':'Fecha após o fim do mês')}</div></div>${f?`<button class="btn sm ghost" data-act="reabrir" data-m="${d.m}">Reabrir</button>`:(ended?`<button class="btn sm" data-act="fechar" data-m="${d.m}">Fechar mês</button>`:`<span class="pill acc">Aberto</span>`)}</div>`}).join(''):emptyBox('Sem movimentações ainda.')}</div>
     ${fech.length>4?`<div class="vmore"><button class="btn sm ghost" data-act="fechall">${S.fechAll?'Mostrar menos':'Ver todos os meses'}</button></div>`:''}
   </section></div>
-  <div class="grid g2" style="margin-top:14px">${GX('caixaMin')}${GX('pend')}</div>
-  <div style="margin-top:14px">${GX('contas')}</div>
   <section class="card" style="margin-top:14px">
     <div class="chead"><div><h2>Movimentações</h2><p class="sub">Agrupadas por dia, com o saldo ao final de cada lançamento</p></div><button class="btn sm ghost" data-act="csv">Exportar CSV</button></div>
     <label class="search">${ic('search','sm')}<input id="cq" type="search" placeholder="Buscar por descrição ou categoria" value="${E(S.cq)}" aria-label="Buscar movimentação"></label>
@@ -495,9 +490,6 @@ V.caixa=()=>{
       return`<div class="row"><div class="grow"><div style="display:flex;justify-content:space-between;gap:8px"><span class="t">${cap1(MESL[+mo-1])}/${yy}${cur?' · em andamento':''}</span><b class="num">${M(fK(real))} ${meta>0?`<span style="color:var(--mut);font-weight:600">de ${M(fK(meta))}</span>`:''}</b></div><div class="meter"><i style="width:${p==null?0:Math.min(100,Math.max(0,p))}%;background:var(--${ok?'pos':cur?'acc':'warn'})"></i></div></div><span class="pill ${tone}" style="min-width:58px;justify-content:center">${p!=null?fP(p,0):'Sem meta'}</span></div>`}).join('')}</div>
   </section>`;
 };
-
-/* ---------- RESULTADO (módulo gestao.js) ---------- */
-const GX=k=>{try{return window.SMZ_GESTAO?window.SMZ_GESTAO.sec[k]():''}catch(e){console.warn(e);return''}};
 
 /* ---------- PARCEIROS ---------- */
 const PICO={Funilaria:'car',Tapeçaria:'tag',Garagem:'home',Pintura:'spark',Mecânica:'compass',Vidraçaria:'search'};
@@ -536,12 +528,11 @@ function ccard(c){
 V.clientes=()=>{
   const all=clientesList(),q=_norm((S.lq||'').trim());
   const list=all.filter(c=>!q||_norm(c.nome+' '+c.tel).includes(q));
-  return `<div class="kpis kpis-3" style="margin-bottom:14px">
-    <div class="kpi"><span class="k">Clientes</span><span class="v num">${all.length}</span></div>
-    <div class="kpi"><span class="k">Compras feitas</span><span class="v num">${sum(all.map(c=>c.compras.length))}</span></div>
-    <div class="kpi"><span class="k">Total vendido</span><span class="v num">${M(fK(sum(all.map(c=>c.total))))}</span></div>
+  return `<div class="kpis" style="grid-template-columns:repeat(3,1fr);margin-bottom:14px">
+    <div class="kpi"><span class="k">Clientes</span><span class="v num" style="font-size:17px">${all.length}</span></div>
+    <div class="kpi"><span class="k">Compras feitas</span><span class="v num" style="font-size:17px">${sum(all.map(c=>c.compras.length))}</span></div>
+    <div class="kpi"><span class="k">Total vendido</span><span class="v num" style="font-size:17px">${M(fK(sum(all.map(c=>c.total))))}</span></div>
   </div>
-  <div style="margin-bottom:14px">${GX('pendRec')}</div>
   <section class="card" style="margin-bottom:14px"><div class="chead"><div><h2>Mensagem padrão</h2><p class="sub">Usada no botão do WhatsApp. <b>{nome}</b> vira o primeiro nome do cliente e <b>{ultimo}</b> o último carro que ele levou. Salva sozinha.</p></div></div>
     <textarea id="msgtpl" rows="3" aria-label="Mensagem padrão">${E(msgTpl())}</textarea></section>
   <label class="search">${ic('search','sm')}<input id="lq" type="search" placeholder="Buscar cliente por nome ou telefone" value="${E(S.lq)}" aria-label="Buscar cliente"></label>
@@ -555,10 +546,10 @@ V.parceiros=()=>{
   const rank=stats.filter(x=>x.st.sold>0).sort((a,b)=>b.st.lucro-a.st.lucro),mx=rank.length?Math.max(1,rank[0].st.lucro):1;
   const atend=state.vehicles.filter(v=>v.status==='Garagem Parceira');
   return`
-  <div class="kpis kpis-3" style="margin-bottom:14px">
-    <div class="kpi"><span class="k">Parceiros</span><span class="v num">${P.length}</span></div>
-    <div class="kpi"><span class="k">Comissões pagas</span><span class="v num">${M(fK(sum(stats.map(x=>x.st.gasto))))}</span></div>
-    <div class="kpi"><span class="k">Em atendimento</span><span class="v num">${atend.length} carro${atend.length===1?'':'s'}</span></div>
+  <div class="kpis" style="grid-template-columns:repeat(3,1fr);margin-bottom:14px">
+    <div class="kpi"><span class="k">Parceiros</span><span class="v num" style="font-size:19px">${P.length}</span></div>
+    <div class="kpi"><span class="k">Comissões pagas</span><span class="v num" style="font-size:19px">${M(fK(sum(stats.map(x=>x.st.gasto))))}</span></div>
+    <div class="kpi"><span class="k">Em atendimento</span><span class="v num" style="font-size:19px">${atend.length} carro${atend.length===1?'':'s'}</span></div>
   </div>
   <div class="grid g2">
     <section class="card"><div class="chead"><div><h2>Com quem os carros estão agora</h2><p class="sub">Tempo de cada veículo na garagem parceira</p></div></div>
@@ -568,7 +559,6 @@ V.parceiros=()=>{
       ${rank.length?rank.map(({p,st})=>`<div class="hbar" data-tip="${E(tipHtml(E(p.nome),[['Lucro',fm(st.lucro)],['Veículos',st.veic],['Prazo médio',st.prazo!=null?st.prazo.toFixed(1).replace('.',',')+' d':'—']]))}"><div class="nm">${E(p.nome)}</div><div class="tr"><i style="width:${Math.max(0,st.lucro)/mx*56}%"></i><b style="left:calc(${Math.max(0,st.lucro)/mx*56}% )">${M(fK(st.lucro))}</b></div></div>`).join('')+table(['Parceiro','Veículos','Lucro'],rank.map(({p,st})=>[E(p.nome),st.veic,M(fK(st.lucro))])):emptyBox('Ainda não há vendas ligadas a parceiros.')}
     </section>
   </div>
-  <div style="margin-top:14px">${GX('pendCom')}</div>
   <div class="ptitle" style="margin:22px 0 12px"><div><h1 style="font-size:21px">Todos os parceiros</h1></div><button class="btn sm" data-act="novoP">${ic('plus','sm')} Novo parceiro</button></div>
   <label class="search">${ic('search','sm')}<input id="pq" type="search" placeholder="Buscar por nome ou cidade" value="${E(S.pq)}" aria-label="Buscar parceiro"></label>
   <div class="chips">${tipos.map(t=>`<button class="chip ${S.pf===t?'on':''}" data-act="pf" data-k="${E(t)}">${E(t)}</button>`).join('')}</div>
@@ -619,7 +609,7 @@ V.executiva=()=>{
   S.sim=Math.min(maxSim,Math.max(20000,S.sim));
   return`
   <section class="card hero2 enter">
-    <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap"><div><div class="k">Disponível para nova compra</div><div class="big num" style="margin-top:4px">${M(fm(Math.max(0,disp)))}</div></div><span class="pill ${cl.t}">${ic(cl.t==='pos'?'check':cl.t==='warn'?'alert':'x','sm')} ${cl.l}</span></div>
+    <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start"><div><div class="k">Disponível para nova compra</div><div class="big num" style="margin-top:4px">${M(fm(Math.max(0,disp)))}</div></div><span class="pill ${cl.t}">${ic(cl.t==='pos'?'check':cl.t==='warn'?'alert':'x','sm')} ${cl.l}</span></div>
     <p class="sub" style="margin:10px 0 14px;font-size:13.5px">${cl.d}</p>
     ${stack(seg,true)}
     <div class="legend">${seg.map(s=>`<span><i style="background:${s.c}"></i>${s.n} <b style="color:var(--tx)">${M(fK(s.v))}</b></span>`).join('')}</div>
@@ -647,7 +637,6 @@ V.executiva=()=>{
     <div class="rows" style="margin-top:12px">${R.list.length?R.list.map(r=>`<div class="row"><div class="badge ${r[3]}">${ic(r[3]==='pos'?'trend':'alert')}</div><div class="grow"><div class="t">${r[0]}</div><div class="s">${r[2]}</div></div><div class="r"><b class="num ${r[3]}-t">${M(r[1])}</b></div></div>`).join(''):emptyBox(S.radar==='atencao'?'Nenhum veículo precisa de atenção agora.':'Sem dados suficientes ainda.')}</div>
   </section>
 
-  <div class="grid g2" style="margin-top:14px">${GX('capital')}${GX('tipos')}</div>
   <div class="grid g2" style="margin-top:14px">
   <section class="card">
     <div class="chead"><div><h2>Especulação</h2><p class="sub">Simule a compra antes de gastar</p></div></div>
@@ -661,27 +650,31 @@ V.executiva=()=>{
 
 /* ---------- SÓCIOS (aportes e pró-labore) ---------- */
 V.prolabore=()=>{
-  const totAp=totalAportado(),totRt=totalRetirado(),cap0=Number(state.capitalInicial||0);
+  const SO=socios(),totAp=totalAportado(),totRt=totalRetirado();
+  const sums=id=>({ap:sum((state.contributions||[]).filter(c=>c.socioId===id).map(c=>Number(c.valor||0))),rt:sum((state.withdrawals||[]).filter(w=>w.socioId===id).map(w=>Number(w.valor||0)))});
+  const parts=SO.map((s,i)=>({s,i,x:sums(s.id)}));
+  const semSocio={ap:totAp-sum(parts.map(p=>p.x.ap)),rt:totRt-sum(parts.map(p=>p.x.rt))};
+  const sc=({s,i,x})=>`<div class="sc"><div style="display:flex;gap:10px;align-items:center"><div class="av" style="background:${sCor(i)}">${E(String(s.nome||'?')[0].toUpperCase())}</div><div><b style="font-size:15px">${E(s.nome)}</b><div class="k">${totAp>0?fP(x.ap/totAp*100):'0,0%'} do capital</div></div></div><div class="k" style="margin-top:12px">Aportado</div><div class="mid num pos-t">${M(fK(x.ap))}</div><div class="k" style="margin-top:8px">Retirado</div><div style="font-weight:800" class="num">${M(fK(x.rt))}</div><div class="sep" style="margin:10px 0"></div><div class="k">Saldo líquido</div><div style="font-weight:800;font-size:17px" class="num">${M(fK(x.ap-x.rt))}</div></div>`;
   const movs=[...(state.contributions||[]).map((c,i)=>({k:'ap',o:c,i})),...(state.withdrawals||[]).map((w,i)=>({k:'rt',o:w,i}))].sort((a,b)=>String(b.o.date||'').localeCompare(String(a.o.date||''))||b.i-a.i);
+  const barItems=parts.map(p=>({n:E(p.s.nome),v:p.x.ap,c:sCor(p.i)}));
+  const lab=parts.length===2&&totAp>0?`<span>${E(parts[0].s.nome)} ${fP(parts[0].x.ap/totAp*100)}</span><span>${fP(parts[1].x.ap/totAp*100)} ${E(parts[1].s.nome)}</span>`:parts.map(p=>`<span>${E(p.s.nome)} ${totAp>0?fP(p.x.ap/totAp*100):'0,0%'}</span>`).join('');
   return`
-  <div class="kpis kpis-3">
-    <div class="kpi"><span class="k">Capital colocado</span><span class="v num pos-t">${M(fK(totAp))}</span><span class="d">aportes na operação</span></div>
-    <div class="kpi"><span class="k">Já retirado</span><span class="v num neg-t">${M(fK(totRt))}</span><span class="d">pró-labore e retiradas</span></div>
-    <div class="kpi"><span class="k">Saldo líquido</span><span class="v num">${M(fK(totAp-totRt))}</span><span class="d">colocado menos retirado</span></div>
-  </div>
-  <section class="card hero2 enter" style="margin-top:14px">
-    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap"><div><div class="k">Novo lançamento</div><p class="sub" style="margin:4px 0 0">Registre dinheiro que entrou ou saiu do seu bolso para a operação.</p></div><div style="display:flex;gap:8px"><button class="btn pos sm" data-act="mov" data-t="aporte">${ic('plus','sm')} Aporte</button><button class="btn neg sm" data-act="mov" data-t="retirada">${ic('minus','sm')} Retirada</button></div></div>
+  <section class="card hero2 enter">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap"><div><div class="k">Capital aportado pelos sócios</div><div class="big num" style="margin-top:4px">${M(fm(totAp))}</div></div><div style="display:flex;gap:8px"><button class="btn pos sm" data-act="mov" data-t="aporte">${ic('plus','sm')} Aporte</button><button class="btn neg sm" data-act="mov" data-t="retirada">${ic('minus','sm')} Retirada</button></div></div>
+    ${totAp>0&&parts.length?`<div style="margin:18px 0 8px;display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;font-size:13px;font-weight:700">${lab}</div>
+    <div class="sbar tall" role="img" aria-label="Divisão do capital aportado">${barItems.filter(i=>i.v>0).map(i=>`<i style="width:${i.v/totAp*100}%;background:${i.c}" data-tip="${E(tipHtml(i.n,[['Aportado',fm(i.v)]]))}"></i>`).join('')}</div>`:''}
   </section>
+  ${parts.length?`<div class="duo" style="margin-top:14px">${parts.map(sc).join('')}</div>`:''}
   <div class="grid g21" style="margin-top:14px">
   <section class="card">
     <div class="chead"><div><h2>Movimento por mês</h2><p class="sub">Aportes sobem, retiradas descem</p></div></div>
     <div class="ch" data-chart="socios"></div>
-    <div class="legend"><span><i style="background:var(--sa)"></i>Aportes (para cima)</span><span><i style="background:var(--neg)"></i>Retiradas (para baixo)</span></div>
-    ${table(['Data','Tipo','Valor'],movs.map(m=>[dBR(m.o.date),m.k==='ap'?'Aporte':'Retirada',M(fK(Number(m.o.valor||0)))]))}
+    <div class="legend">${parts.map(p=>`<span><i style="background:${sCor(p.i)}"></i>${E(p.s.nome)}</span>`).join('')}<span style="color:var(--mut)">Retiradas em tom mais claro</span></div>
+    ${table(['Data','Tipo','Sócio','Valor'],movs.map(m=>[dBR(m.o.date),m.k==='ap'?'Aporte':'Retirada',E(socioNome(m.o.socioId)),M(fK(Number(m.o.valor||0)))]))}
   </section>
   <section class="card">
-    <div class="chead"><div><h2>Histórico</h2><p class="sub">Aportes e retiradas lançados</p></div></div>
-    <div class="rows">${movs.length?movs.map(m=>{const o=m.o,ap=m.k==='ap',ini=ap&&o.inicial;return`<div class="row hrow"><div class="badge ${ap?'pos':'neg'}">${ic(ap?'up':'down')}</div><div class="grow"><div class="t">${E((ap?o.origem:o.motivo)||(ap?'Aporte':'Pró-labore'))}${ini?' <span class="pill acc" style="height:20px;font-size:11px">inicial</span>':''}</div><div class="s">${dBR(o.date)}</div></div><div class="r"><b class="num ${ap?'pos-t':'neg-t'}">${ap?'+':'−'} ${M(fK(Number(o.valor||0)))}</b></div><button class="ico-btn" data-act="${ap?'apedit':'wdedit'}" data-id="${E(o.id)}" aria-label="Editar" title="Editar">${ic('edit','sm')}</button></div>`}).join(''):emptyBox('Nenhum aporte ou retirada ainda.')}</div>
+    <div class="chead"><div><h2>Histórico</h2><p class="sub">Quem lançou fica registrado</p></div></div>
+    <div class="rows">${movs.length?movs.map(m=>{const o=m.o,ap=m.k==='ap',i=socioIdx(o.socioId),nm=socioNome(o.socioId),ini=ap&&o.inicial;return`<div class="row hrow"><div class="av" style="background:${sCor(i)};width:40px;height:40px;border-radius:13px">${E(String(nm||'?')[0].toUpperCase())}</div><div class="grow"><div class="t">${E((ap?o.origem:o.motivo)||(ap?'Aporte':'Pró-labore'))}${ini?' <span class="pill acc" style="height:20px;font-size:11px">inicial</span>':''}</div><div class="s">${E(nm)} · ${dBR(o.date)} · lançado por ${E(o.criadoPor||'—')}</div></div><div class="r"><b class="num ${ap?'pos-t':'neg-t'}">${ap?'+':'−'} ${M(fm(Number(o.valor||0)))}</b></div><button class="ico-btn" data-act="medit" data-k="${m.k}" data-id="${E(o.id)}" aria-label="Editar" title="Editar">${ic('edit','sm')}</button><button class="ico-btn dng" data-act="mdel" data-k="${m.k}" data-id="${E(o.id)}" aria-label="Excluir" title="Excluir">${ic('trash','sm')}</button></div>`}).join(''):emptyBox('Nenhum aporte ou retirada registrado.')}</div>
   </section></div>`;
 };
 
@@ -697,10 +690,8 @@ function syncRailStatus(){const rs=$('#rail-sync'),sy=$('#ac-sync');if(rs&&sy)rs
 function renderView(){
   const t=NAV.find(x=>x.id===activeTab)||NAV[0],v=$('#view');if(!v)return;
   const keep=document.activeElement&&document.activeElement.id,sel=keep&&document.activeElement.selectionStart;
-  try{window.SMZ_CHARTS&&SMZ_CHARTS.begin()}catch(_){}
-  v.innerHTML=`<div class="ptitle"><div><h1>${t.t}</h1><p>${SUB[t.id]()}</p></div>${t.id==='veiculos'?`<button class="btn" data-act="vnew">${ic('plus','sm')} Novo veículo</button>`:''}</div>`+V[t.id]()+`<p class="foot-note">Dados salvos automaticamente e sincronizados na nuvem.</p>`;
+  v.innerHTML=`<div class="ptitle"><div><h1>${t.t}</h1><p>${SUB[t.id]()}</p></div>${t.id==='veiculos'?`<button class="btn" data-act="vnew">${ic('plus','sm')} Novo veículo</button>`:''}</div>`+V[t.id]()+`<p class="foot-note">Dados salvos automaticamente e sincronizados na nuvem.<br><button type="button" data-act="hist">Histórico de alterações</button></p>`;
   drawCharts();
-  try{window.SMZ_CHARTS&&SMZ_CHARTS.after(t.id)}catch(_){}
   if(t.id==='dashboard'&&S.first)countUp();
   S.first=false;
   const sr=$('#simr');if(sr)sr.addEventListener('input',e=>{S.sim=+e.target.value;$('#simout').innerHTML=simHtml()});
@@ -722,7 +713,7 @@ function renderChrome(){
 
 /* ---------- formulários em folha (mesmos campos e ids do sistema) ---------- */
 function setPick(inputId,val){const i=document.getElementById(inputId);if(i)i.value=val;$$(`[data-pick="${inputId}"]`).forEach(b=>b.classList.toggle('on',b.dataset.v===val))}
-function buildSocioPicks(){return;
+function buildSocioPicks(){
   [['ap-socio','ap-socio-pick'],['wd-socio','wd-socio-pick']].forEach(([sid,pid])=>{
     const sel=document.getElementById(sid),box=document.getElementById(pid);if(!sel||!box)return;
     box.innerHTML=Array.from(sel.options).map((o,i)=>`<button type="button" class="${o.value===sel.value?'on':''}" data-act="pick" data-s="${sid}" data-v="${E(o.value)}"><span class="dot" style="background:${sCor(i)}"></span>${E(o.text)}</button>`).join('');
@@ -812,7 +803,6 @@ function act(a,d){
     case 'acc-avisos': closeModalEl('account-modal');acShowAvisos(true); break;
     case 'acc-audit': closeModalEl('account-modal');showAuditReport(); break;
     case 'acc-sair': closeModalEl('account-modal');AC.logout(); break;
-    default: if(String(a).indexOf('gx-')===0&&window.SMZ_GESTAO) window.SMZ_GESTAO.act(a,d);
   }
 }
 function wire(){
