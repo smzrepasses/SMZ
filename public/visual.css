@@ -689,3 +689,69 @@ img,svg,canvas,video{max-width:100%}
 .vm-out .o{min-width:0}
 .vm-out .o b,.vm-out .o i{max-width:100%;overflow-wrap:break-word}
 @media(max-width:360px){.vm-out .o b{font-size:17px}.vm-out .o{padding:14px 8px}}
+
+/* =====================================================================
+   CARDS DE NÚMEROS (KPIs) — celular: um por linha, grandes, centralizados e coloridos
+   (mesmo padrão da aba Aportes e Retiradas, em todas as abas)
+   ===================================================================== */
+.kpis{margin-bottom:0}
+.kpis>.kpi{--kc:var(--c1)}
+.kpis>.kpi:nth-child(2n){--kc:var(--c4)}
+.kpis>.kpi:nth-child(3n){--kc:var(--c3)}
+.kpis>.kpi:nth-child(4n){--kc:#a66bff}
+.kpis>.kpi:has(.pos-t){--kc:var(--pos)}
+.kpis>.kpi:has(.neg-t){--kc:var(--neg)}
+.kpis .kpi{
+  align-items:center;text-align:center;gap:6px;padding:20px 16px 18px;border-radius:22px;position:relative;overflow:hidden;
+  background:linear-gradient(180deg,color-mix(in srgb,var(--kc) 15%,var(--s1)) 0%,var(--s1) 78%);
+  box-shadow:0 0 0 1px color-mix(in srgb,var(--kc) 30%,var(--line));
+}
+.kpis .kpi::before{content:"";position:absolute;left:22%;right:22%;top:0;height:3px;border-radius:0 0 4px 4px;background:var(--kc)}
+.kpis .kpi .k{font-size:12.5px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--tx2)}
+.kpis .kpi .v{font-size:clamp(28px,8.6vw,38px);font-weight:800;letter-spacing:-.035em;line-height:1.1;max-width:100%}
+.kpis .kpi .v:not(.pos-t):not(.neg-t){color:var(--kc)}
+.kpis .kpi .d{font-size:13px;color:var(--tx2);min-height:0;text-align:center}
+.kpis .kpi .meter,.kpis .kpi svg{align-self:stretch}
+.kpis .kpi:has(svg){align-items:stretch}
+.kpis .kpi:has(svg) .k,.kpis .kpi:has(svg) .v,.kpis .kpi:has(svg) .d{align-self:center}
+
+@media(max-width:699px){
+  .kpis,.kpis.kpis-2,.kpis.kpis-3{grid-template-columns:minmax(0,1fr)!important;gap:12px}
+  .kpis>.kpi{grid-column:auto!important}
+}
+@media(min-width:700px){
+  .kpis.kpis-3{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .kpis.kpis-2{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .kpis .kpi .v{font-size:clamp(24px,2.4vw,32px)}
+}
+
+/* =====================================================================
+   DATA DO TOPO — linha própria, maior e centralizada (fora da linha dos botões)
+   ===================================================================== */
+@media(max-width:1019px){
+  .top{justify-content:center;row-gap:10px}
+  .topdate{flex:0 0 100%;order:1;text-align:center;font-size:19px;font-weight:800;letter-spacing:.05em;color:var(--tx);padding:8px 0 2px;overflow:visible;text-overflow:clip}
+  .top .iconbtn,.top .me{order:2}
+}
+@media(min-width:700px) and (max-width:1019px){.topdate .dl{display:inline}.topdate .dc{display:none}.topdate{font-size:21px}}
+@media(min-width:1020px){.topdate{font-size:16px;font-weight:800;color:var(--tx)}}
+
+/* mini-resumos dentro dos cards (veículo e parceiro): no celular, uma linha por item, número inteiro e legível */
+.vgrid b,.pstats b,.vgrid small,.pstats small{overflow-wrap:normal;hyphens:manual;white-space:nowrap}
+@media(max-width:560px){
+  .vgrid{grid-template-columns:minmax(0,1fr);gap:8px}
+  .vgrid>div{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:11px 14px}
+  .vgrid small{font-size:13px}
+  .vgrid b{font-size:17px;font-weight:800}
+  .pstats{grid-template-columns:minmax(0,1fr);gap:8px}
+  .pstats>div{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:11px 14px}
+  .pstats small{font-size:13px}
+  .pstats b{font-size:17px;font-weight:800}
+}
+
+/* cards de números dentro de outro card (ex.: Vendas do mês, A receber): nunca mais de 1 por linha até telas largas */
+.kpis.kpis-n{grid-template-columns:minmax(0,1fr)}
+@media(min-width:1020px){.kpis.kpis-n{grid-template-columns:repeat(var(--n,3),minmax(0,1fr))}}
+@media(max-width:1019px){.card .kpis.kpis-3,.card .kpis.kpis-2{grid-template-columns:minmax(0,1fr)!important}.card .kpis>.kpi{grid-column:auto!important}}
+.card .kpis .kpi{padding:16px 14px 14px}
+.card .kpis .kpi .v{font-size:clamp(26px,7.6vw,34px)}

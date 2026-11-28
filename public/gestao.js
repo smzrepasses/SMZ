@@ -355,7 +355,7 @@ function secPend(parts,titulo,sub){
   const ch1=[W.includes('com')&&{n:'Comissões a pagar',v:tCom,c:'var(--c2)'},W.includes('rec')&&{n:'A receber de vendas',v:tRec,c:'var(--c3)'},W.includes('bol')&&{n:'Boletos de repasse',v:tBol,c:'var(--c4)'}].filter(x=>x&&x.v>0);
   return `<section class="card">
     <div class="chead"><div><h2>${titulo||'Pendências'}</h2><p class="sub">${sub||'Dinheiro que você deve ou ainda vai receber'}</p></div></div>
-    ${ch1.length?`<div class="kpis" style="grid-template-columns:repeat(${ch1.length},1fr);margin-bottom:6px">${ch1.map(x=>`<div class="kpi"><span class="k">${x.n}</span><span class="v num" style="font-size:17px;color:${x.c}">${M(fK(x.v))}</span></div>`).join('')}</div>`:''}
+    ${ch1.length?`<div class="kpis kpis-n" style="--n:${ch1.length};margin-bottom:6px">${ch1.map(x=>`<div class="kpi" style="--kc:${x.c}"><span class="k">${x.n}</span><span class="v num" style="color:${x.c}">${M(fK(x.v))}</span></div>`).join('')}</div>`:''}
     ${tem?'':`<div class="empty">Nada pendente.</div>`}
     ${W.includes('com')&&p.comPagar.length?h('Comissões a pagar')+`<div class="rows">${p.comPagar.map(v=>lin('tag',E(nomeV(v)),`${E(vehicleParceiroNome(v)||'garagem parceira')} · vendido em ${dBR(v.dataVenda)}`,M(fm(vehicleComissaoPendente(v))),b('gx-compay',v.id,'Marcar como paga'))).join('')}</div>`:''}
     ${W.includes('rec')&&p.aReceber.length?h('Vendas com valor a receber')+`<div class="rows">${p.aReceber.map(v=>lin('clock',E(nomeV(v)),`vendido em ${dBR(v.dataVenda)}${v.comprador?' para '+E(v.comprador):''}`,M(fm(vehicleAReceber(v))),b('gx-rec',v.id,'Registrar recebimento'))).join('')}</div>`:''}
@@ -375,10 +375,10 @@ function secOps(){
   return `<section class="card">
     ${mnav()}
     <div class="chead"><div><h2>Vendas de ${nomeMes(ym)}</h2><p class="sub">Toque num carro para ver para onde foi cada real</p></div></div>
-    <div class="kpis" style="grid-template-columns:repeat(3,1fr);margin-bottom:12px">
-      <div class="kpi"><span class="k">Carros vendidos</span><span class="v num" style="font-size:17px">${m.n}</span></div>
-      <div class="kpi"><span class="k">Lucro</span><span class="v num ${tn(m.lucroOps)}" style="font-size:17px">${M(fK(m.lucroOps))}</span></div>
-      <div class="kpi"><span class="k">Tempo médio</span><span class="v num ${dias==null?'':dias>META_DIAS_ESTOQUE?'warn-t':'pos-t'}" style="font-size:17px">${dias==null?'—':fD(dias)+' d'}</span></div>
+    <div class="kpis kpis-3" style="margin-bottom:12px">
+      <div class="kpi"><span class="k">Carros vendidos</span><span class="v num">${m.n}</span></div>
+      <div class="kpi"><span class="k">Lucro</span><span class="v num ${tn(m.lucroOps)}">${M(fK(m.lucroOps))}</span></div>
+      <div class="kpi"><span class="k">Tempo médio</span><span class="v num ${dias==null?'':dias>META_DIAS_ESTOQUE?'warn-t':'pos-t'}">${dias==null?'—':fD(dias)+' d'}</span></div>
     </div>
     ${graf}
     ${ops.length?`<div class="rows">${ops.map(o=>{

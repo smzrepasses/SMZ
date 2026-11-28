@@ -436,10 +436,10 @@ V.veiculos=()=>{
   let list=vehFilteredNew();
   if(S.vf==='vendido')list=list.sort((a,b)=>String(b.dataVenda||'').localeCompare(String(a.dataVenda||'')));
   return`
-  <div class="kpis" style="grid-template-columns:repeat(3,1fr);margin-bottom:14px">
-    <div class="kpi"><span class="k">Capital</span><span class="v num" style="font-size:17px">${M(fK(totEst))}</span></div>
-    <div class="kpi"><span class="k">Lucro previsto</span><span class="v num" style="font-size:17px">${M(fK(proj))}</span></div>
-    <div class="kpi"><span class="k">Dias médios</span><span class="v num" style="font-size:17px">${Math.round(dm)} d</span></div>
+  <div class="kpis kpis-3" style="margin-bottom:14px">
+    <div class="kpi"><span class="k">Capital</span><span class="v num">${M(fK(totEst))}</span></div>
+    <div class="kpi"><span class="k">Lucro previsto</span><span class="v num">${M(fK(proj))}</span></div>
+    <div class="kpi"><span class="k">Dias médios</span><span class="v num">${Math.round(dm)} d</span></div>
   </div>
   <label class="search">${ic('search','sm')}<input id="vq" type="search" placeholder="Buscar por marca, modelo, placa ou ano" value="${E(S.vq)}" aria-label="Buscar veículo"></label>
   <div class="chips" role="group" aria-label="Filtrar por situação">${fl.map(([k,l])=>`<button class="chip ${S.vf===k?'on':''}" data-act="vf" data-k="${k}">${l}<i>${cnt(k)}</i></button>`).join('')}</div>
@@ -463,8 +463,8 @@ V.caixa=()=>{
   const goals=state.monthlyGoals||{},mset=new Set([...Object.keys(goals).filter(k=>Number(goals[k])>0),ymNow(),...veiculosVendidos().map(v=>ymOf(v.dataVenda)).filter(Boolean)]);
   const mm=Array.from(mset).sort().reverse().slice(0,8);
   return`
-  <div class="kpis" style="grid-template-columns:1fr 1fr">
-    <div class="kpi" style="grid-column:span 2"><span class="k">Saldo em caixa</span><span class="v num big" style="font-size:32px">${M(fm(caixaSaldo()))}</span><span class="d">${totalCustosPrevistos()>0?M(fm(totalCustosPrevistos()))+' em custos previstos já reservados':'sem custos previstos reservados'}</span></div>
+  <div class="kpis kpis-2">
+    <div class="kpi" style="grid-column:span 2"><span class="k">Saldo em caixa</span><span class="v num big">${M(fm(caixaSaldo()))}</span><span class="d">${totalCustosPrevistos()>0?M(fm(totalCustosPrevistos()))+' em custos previstos já reservados':'sem custos previstos reservados'}</span></div>
     <div class="kpi"><span class="k">Entradas em ${nm}</span><span class="v num pos-t">${M(fm(ent))}</span></div>
     <div class="kpi"><span class="k">Saídas em ${nm}</span><span class="v num neg-t">${M(fm(sai))}</span></div>
   </div>
@@ -536,10 +536,10 @@ function ccard(c){
 V.clientes=()=>{
   const all=clientesList(),q=_norm((S.lq||'').trim());
   const list=all.filter(c=>!q||_norm(c.nome+' '+c.tel).includes(q));
-  return `<div class="kpis" style="grid-template-columns:repeat(3,1fr);margin-bottom:14px">
-    <div class="kpi"><span class="k">Clientes</span><span class="v num" style="font-size:17px">${all.length}</span></div>
-    <div class="kpi"><span class="k">Compras feitas</span><span class="v num" style="font-size:17px">${sum(all.map(c=>c.compras.length))}</span></div>
-    <div class="kpi"><span class="k">Total vendido</span><span class="v num" style="font-size:17px">${M(fK(sum(all.map(c=>c.total))))}</span></div>
+  return `<div class="kpis kpis-3" style="margin-bottom:14px">
+    <div class="kpi"><span class="k">Clientes</span><span class="v num">${all.length}</span></div>
+    <div class="kpi"><span class="k">Compras feitas</span><span class="v num">${sum(all.map(c=>c.compras.length))}</span></div>
+    <div class="kpi"><span class="k">Total vendido</span><span class="v num">${M(fK(sum(all.map(c=>c.total))))}</span></div>
   </div>
   <div style="margin-bottom:14px">${GX('pendRec')}</div>
   <section class="card" style="margin-bottom:14px"><div class="chead"><div><h2>Mensagem padrão</h2><p class="sub">Usada no botão do WhatsApp. <b>{nome}</b> vira o primeiro nome do cliente e <b>{ultimo}</b> o último carro que ele levou. Salva sozinha.</p></div></div>
@@ -555,10 +555,10 @@ V.parceiros=()=>{
   const rank=stats.filter(x=>x.st.sold>0).sort((a,b)=>b.st.lucro-a.st.lucro),mx=rank.length?Math.max(1,rank[0].st.lucro):1;
   const atend=state.vehicles.filter(v=>v.status==='Garagem Parceira');
   return`
-  <div class="kpis" style="grid-template-columns:repeat(3,1fr);margin-bottom:14px">
-    <div class="kpi"><span class="k">Parceiros</span><span class="v num" style="font-size:19px">${P.length}</span></div>
-    <div class="kpi"><span class="k">Comissões pagas</span><span class="v num" style="font-size:19px">${M(fK(sum(stats.map(x=>x.st.gasto))))}</span></div>
-    <div class="kpi"><span class="k">Em atendimento</span><span class="v num" style="font-size:19px">${atend.length} carro${atend.length===1?'':'s'}</span></div>
+  <div class="kpis kpis-3" style="margin-bottom:14px">
+    <div class="kpi"><span class="k">Parceiros</span><span class="v num">${P.length}</span></div>
+    <div class="kpi"><span class="k">Comissões pagas</span><span class="v num">${M(fK(sum(stats.map(x=>x.st.gasto))))}</span></div>
+    <div class="kpi"><span class="k">Em atendimento</span><span class="v num">${atend.length} carro${atend.length===1?'':'s'}</span></div>
   </div>
   <div class="grid g2">
     <section class="card"><div class="chead"><div><h2>Com quem os carros estão agora</h2><p class="sub">Tempo de cada veículo na garagem parceira</p></div></div>
@@ -698,7 +698,7 @@ function renderView(){
   const t=NAV.find(x=>x.id===activeTab)||NAV[0],v=$('#view');if(!v)return;
   const keep=document.activeElement&&document.activeElement.id,sel=keep&&document.activeElement.selectionStart;
   try{window.SMZ_CHARTS&&SMZ_CHARTS.begin()}catch(_){}
-  v.innerHTML=`<div class="ptitle"><div><h1>${t.t}</h1><p>${SUB[t.id]()}</p></div>${t.id==='veiculos'?`<button class="btn" data-act="vnew">${ic('plus','sm')} Novo veículo</button>`:''}</div>`+V[t.id]()+`<p class="foot-note">Dados salvos automaticamente e sincronizados na nuvem.<br><button type="button" data-act="hist">Histórico de alterações</button></p>`;
+  v.innerHTML=`<div class="ptitle"><div><h1>${t.t}</h1><p>${SUB[t.id]()}</p></div>${t.id==='veiculos'?`<button class="btn" data-act="vnew">${ic('plus','sm')} Novo veículo</button>`:''}</div>`+V[t.id]()+`<p class="foot-note">Dados salvos automaticamente e sincronizados na nuvem.</p>`;
   drawCharts();
   try{window.SMZ_CHARTS&&SMZ_CHARTS.after(t.id)}catch(_){}
   if(t.id==='dashboard'&&S.first)countUp();
